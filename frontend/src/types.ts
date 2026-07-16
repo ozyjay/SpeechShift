@@ -62,4 +62,12 @@ export interface StreamEvent {
   first_audio_latency_ms?: number;
   replay_timing?: boolean;
   code?: string;
+  mock?: boolean;
+  fixture?: boolean;
+  mock_timing?: boolean;
+  audio_format?: {
+    encoding: string;
+    sample_rate_hz: number;
+    channels: number;
+  };
 }

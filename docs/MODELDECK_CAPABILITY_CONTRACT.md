@@ -1,6 +1,6 @@
 # ModelDeck capability contract
 
-Status: proposed; not implemented by this replay-first milestone.
+Status: proposed production contract; deterministic development mock implemented in SpeechShift. ModelDeck itself does not yet expose a speech route.
 
 SpeechShift will connect only to `http://127.0.0.1:8600` and never to management or worker ports. WebSockets are the preferred initial transport because the visitor contract needs bidirectional binary audio, cancellation, partial text and streamed audio.
 
@@ -31,5 +31,10 @@ The opening message additionally contains `target_language` and a safe `voice_pr
 - structured not-ready, unsupported-language and invalid-profile errors;
 - gateway disconnect does not trigger a silent provider change.
 
-The initial capability should be one composite speech worker if physical probes show it improves cancellation and GPU-memory coordination. Multiple workers are justified only if independent lifecycle or reuse demonstrably outweighs extra hops and scheduling complexity.
+## Implemented mock framing
 
+The development mock uses the SpeechShift session WebSocket until ModelDeck owns a real gateway route. A `start_mock` JSON message declares the mode, curated selection and audio format. Each subsequent binary input message begins with a four-byte little-endian sequence number followed by PCM16 audio. `end_audio` closes input.
+
+Output sends `audio_start` JSON with the audio format, sequenced binary PCM16 messages, then `audio_end`. Input and output reject missing, repeated or out-of-order frames and enforce hard byte limits. Cancellation clears pending input and stops output. This framing is evidence for the proposed contract, not a commitment that ModelDeck must reuse the development route name.
+
+The initial capability should be one composite speech worker if physical probes show it improves cancellation and GPU-memory coordination. Multiple workers are justified only if independent lifecycle or reuse demonstrably outweighs extra hops and scheduling complexity.

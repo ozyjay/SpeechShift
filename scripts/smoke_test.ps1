@@ -16,4 +16,5 @@ $Worklet = Invoke-WebRequest -Uri "$BaseUrl/audio-worklet.js" -TimeoutSec 5
 if ($Worklet.StatusCode -ne 200 -or $Worklet.Content -notmatch "speechshift-capture") {
     throw "SpeechShift audio capture worklet is unavailable."
 }
-Write-Host "SpeechShift smoke test passed: replay ready, audio capture bounded, and $($Catalogue.sentences.Count) sentences available."
+& .venv/bin/python scripts/smoke_mock.py
+Write-Host "SpeechShift smoke test passed: replay ready, audio bounded, and mock binary streaming complete."

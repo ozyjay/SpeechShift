@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { BoundedSampleBuffer, encodeMonoWav, resampleLinear } from "./audio";
+import {
+  BoundedSampleBuffer,
+  encodeMonoWav,
+  resampleLinear,
+  SequencedPcmOutput,
+  sequencedPcm16Frames,
+} from "./audio";
 
 describe("bounded audio buffering", () => {
   it("never accepts more than its configured maximum", () => {
@@ -34,5 +40,15 @@ describe("audio conversion", () => {
     expect(new TextDecoder().decode(bytes.slice(8, 12))).toBe("WAVE");
     expect(wav.size).toBe(50);
   });
-});
 
+  it("frames PCM with sequence numbers and rebuilds streamed output", async () => {
+    const frames = sequencedPcm16Frames(new Float32Array([0, 0.5, -0.5]), 2);
+    expect(frames).toHaveLength(2);
+    expect(new DataView(frames[0]).getUint32(0, true)).toBe(1);
+    expect(new DataView(frames[1]).getUint32(0, true)).toBe(2);
+    const output = new SequencedPcmOutput(32);
+    frames.forEach((frame) => output.append(frame));
+    const wav = output.consumeWav(16_000);
+    expect(wav.size).toBe(50);
+  });
+});

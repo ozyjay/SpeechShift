@@ -16,6 +16,7 @@ class DemoMode(StrEnum):
 
 class SpeechProvider(StrEnum):
     REPLAY = "replay"
+    MOCK_MODELDECK = "mock-modeldeck"
     LOCAL = "local"
     MODELDECK = "modeldeck"
 
@@ -71,4 +72,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

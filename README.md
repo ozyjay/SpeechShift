@@ -19,10 +19,13 @@ SpeechShift is an honest replay-first MVP with a separate local microphone found
 - Hold-to-record capture with an eight-second hard limit and live input-level meter.
 - Mono 16 kHz PCM conversion and local original-audio playback entirely in browser memory.
 - Microphone unplug handling and recording cleanup on cancel, reset and page exit.
+- Staff-selectable deterministic mock contract in development mode.
+- Sequenced, bounded binary PCM input and output over the session WebSocket.
+- Partial/final transcript events, translation events, streamed output audio, cancellation and structured errors.
 - Unified visitor screen and staff diagnostics panel.
 - Strict privacy and ModelDeck gateway configuration checks.
 
-The microphone remains inactive until the visitor selects **Enable microphone** and then holds **Hold to record**. Releasing the button stops capture. The recording is never uploaded to the backend or connected to the replay transformation. The `local` and `modeldeck` providers remain visible but unavailable until their model implementation and readiness gates pass.
+The microphone remains inactive until the visitor selects **Enable microphone** and then holds **Hold to record**. Releasing the button stops capture. In Replay mode, the recording never leaves the browser. Staff may explicitly select **Mock contract** in development mode; this sends bounded PCM to the local SpeechShift backend and exercises the proposed streaming contract. Its text, timing and output audio are deterministic fixtures, not AI results. The `local` and real `modeldeck` providers remain unavailable until their model implementation and readiness gates pass.
 
 ## Quick start
 

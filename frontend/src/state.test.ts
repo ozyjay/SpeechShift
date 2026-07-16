@@ -12,6 +12,6 @@ describe("stream state", () => {
   it("labels replay timing honestly", () => {
     expect(formatLatency(1540, true)).toBe("1.5 s prepared timing");
     expect(formatLatency(1540, false)).toBe("1.5 s measured");
+    expect(formatLatency(1540, false, true)).toBe("1.5 s mock timing");
   });
 });
-

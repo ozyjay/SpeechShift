@@ -74,7 +74,18 @@ export function resampleLinear(input: Float32Array, sourceRate: number, targetRa
 }
 
 export function encodeMonoWav(samples: Float32Array, sampleRate: number): Blob {
-  const dataLength = samples.length * 2;
+  const pcm = new Uint8Array(samples.length * 2);
+  const pcmView = new DataView(pcm.buffer);
+  samples.forEach((sample, index) => {
+    const clamped = Math.max(-1, Math.min(1, sample));
+    pcmView.setInt16(index * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+  });
+  return encodePcm16Wav(pcm, sampleRate);
+}
+
+export function encodePcm16Wav(pcm: Uint8Array, sampleRate: number): Blob {
+  if (pcm.byteLength % 2 !== 0) throw new Error("PCM16 audio must contain complete samples");
+  const dataLength = pcm.byteLength;
   const buffer = new ArrayBuffer(44 + dataLength);
   const view = new DataView(buffer);
   const writeText = (offset: number, value: string): void => {
@@ -93,11 +104,66 @@ export function encodeMonoWav(samples: Float32Array, sampleRate: number): Blob {
   view.setUint16(34, 16, true);
   writeText(36, "data");
   view.setUint32(40, dataLength, true);
-  samples.forEach((sample, index) => {
-    const clamped = Math.max(-1, Math.min(1, sample));
-    view.setInt16(44 + index * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
-  });
+  new Uint8Array(buffer, 44).set(pcm);
   return new Blob([buffer], { type: "audio/wav" });
+}
+
+export function sequencedPcm16Frames(samples: Float32Array, frameSamples = 320): ArrayBuffer[] {
+  if (!Number.isInteger(frameSamples) || frameSamples < 1) throw new Error("frameSamples must be positive");
+  const frames: ArrayBuffer[] = [];
+  let sequence = 1;
+  for (let offset = 0; offset < samples.length; offset += frameSamples) {
+    const length = Math.min(frameSamples, samples.length - offset);
+    const frame = new ArrayBuffer(4 + length * 2);
+    const view = new DataView(frame);
+    view.setUint32(0, sequence, true);
+    for (let index = 0; index < length; index += 1) {
+      const sample = Math.max(-1, Math.min(1, samples[offset + index]));
+      view.setInt16(4 + index * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+    }
+    frames.push(frame);
+    sequence += 1;
+  }
+  return frames;
+}
+
+export class SequencedPcmOutput {
+  #maximumBytes: number;
+  #chunks: Uint8Array[] = [];
+  #length = 0;
+  #nextSequence = 1;
+
+  constructor(maximumBytes: number) {
+    this.#maximumBytes = maximumBytes;
+  }
+
+  append(frame: ArrayBuffer): void {
+    if (frame.byteLength <= 4) throw new Error("Invalid output audio frame");
+    const view = new DataView(frame);
+    if (view.getUint32(0, true) !== this.#nextSequence) throw new Error("Output audio sequence error");
+    const audio = new Uint8Array(frame.slice(4));
+    if (this.#length + audio.byteLength > this.#maximumBytes) throw new Error("Output audio buffer limit reached");
+    this.#chunks.push(audio);
+    this.#length += audio.byteLength;
+    this.#nextSequence += 1;
+  }
+
+  consumeWav(sampleRate: number): Blob {
+    const pcm = new Uint8Array(this.#length);
+    let offset = 0;
+    for (const chunk of this.#chunks) {
+      pcm.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    this.clear();
+    return encodePcm16Wav(pcm, sampleRate);
+  }
+
+  clear(): void {
+    this.#chunks = [];
+    this.#length = 0;
+    this.#nextSequence = 1;
+  }
 }
 
 export async function requestMicrophonePermission(): Promise<void> {
@@ -257,4 +323,3 @@ function ensureMicrophoneSupport(): void {
     throw new Error("Microphone capture requires a supported browser on localhost or a secure connection.");
   }
 }
-

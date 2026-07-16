@@ -10,6 +10,7 @@
 - Keep visitor data in memory only and reject persistence configuration.
 - Validate microphone capture as a separate browser-only path before connecting it to any provider.
 - Use AudioWorklet with a hard-bounded buffer and resample completed capture to mono 16 kHz PCM.
+- Add `mock-modeldeck` as a development-only provider so the binary capability contract can be validated without misrepresenting ModelDeck readiness.
 - Prefer one composite ModelDeck speech capability initially, subject to physical probes.
 
 ## Proposed externally

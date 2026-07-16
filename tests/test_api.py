@@ -18,6 +18,7 @@ def test_health_reports_replay_without_claiming_live_readiness() -> None:
             "provider": "replay",
             "replay_ready": True,
             "live_provider_ready": False,
+            "mock_provider_ready": True,
             "storage": "memory-only",
         }
 
@@ -53,8 +54,31 @@ def test_public_config_keeps_live_providers_visibly_unavailable() -> None:
         assert payload["max_input_seconds"] == 8
         assert [provider["state"] for provider in payload["providers"]] == [
             "ready",
+            "ready",
             "not-configured",
             "not-configured",
         ]
+
+    asyncio.run(scenario())
+
+
+def test_development_provider_selection_is_explicit() -> None:
+    async def scenario() -> None:
+        settings = Settings(replay_asset_dir=Path("assets/replay"), _env_file=None)
+        transport = ASGITransport(app=create_app(settings))
+        async with AsyncClient(transport=transport, base_url="http://speechshift.test") as client:
+            selected = await client.post(
+                "/api/providers/select",
+                json={"provider": "mock-modeldeck"},
+            )
+            rejected = await client.post(
+                "/api/providers/select",
+                json={"provider": "modeldeck"},
+            )
+        assert selected.status_code == 200
+        assert selected.json()["provider"] == "mock-modeldeck"
+        assert selected.json()["provider_label"] == "Mock contract"
+        assert rejected.status_code == 409
+        assert rejected.json()["detail"] == "provider is not ready"
 
     asyncio.run(scenario())

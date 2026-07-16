@@ -8,8 +8,8 @@ export function acceptsEvent(event: StreamEvent, generation: number, lastSequenc
   return true;
 }
 
-export function formatLatency(milliseconds: number, replayTiming: boolean): string {
+export function formatLatency(milliseconds: number, replayTiming: boolean, mockTiming = false): string {
   const seconds = (milliseconds / 1000).toFixed(1);
+  if (mockTiming) return `${seconds} s mock timing`;
   return replayTiming ? `${seconds} s prepared timing` : `${seconds} s measured`;
 }
-

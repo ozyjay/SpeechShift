@@ -24,6 +24,10 @@ Select **Next visitor / Reset**. Confirm microphone capture and playback stop, t
 - Application unavailable: restart only SpeechShift after confirming port `3800` is free.
 - ModelDeck unavailable: no action is needed for replay; do not present a live provider as active.
 
+## Development mock check
+
+Open **Operator controls** and explicitly choose **Mock contract**. Record a short sample, then select **Run mock pipeline**. Explain that the input transport is real but the transcript, translation, timing and output audio are deterministic fixtures. Return the provider to **Replay** before public operation. Mock contract is rejected in Open Day mode.
+
 ## Shutdown
 
 Reset the active session, close the browser and interrupt the foreground SpeechShift process. If it is detached, use `scripts/stop.ps1`, which refuses to stop a process that does not identify as SpeechShift. Application shutdown clears remaining in-memory sessions.

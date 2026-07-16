@@ -14,11 +14,16 @@
 - hard-bounded audio frame buffering;
 - deterministic 48 kHz to 16 kHz resampling shape;
 - mono 16-bit PCM WAV encoding;
+- sequenced PCM input/output framing and ordering rejection;
+- backend byte-buffer limits and short-audio rejection;
+- explicit development provider selection and unavailable live-provider rejection;
+- deterministic mock partial/final events, binary fixture output and metrics;
 - TypeScript type-check, production build, Python lint and tests.
 
 ## Operational now
 
 - `scripts/smoke_test.ps1` checks a running application's health and catalogue;
+- the smoke test selects Mock contract, sends synthetic sequenced PCM over WebSocket, validates text events and binary output ordering, then restores Replay;
 - `scripts/burn_in.ps1` performs repeated create/reset cycles;
 - manually verify microphone permission denial and approval, device selection, live level, hold/release capture, eight-second auto-stop, original playback, mute, clear, reset, browser refresh and unplug/replug;
 - manually verify both transformation modes, all 18 replay WAV files, cancel, reset and staff panel at the event resolution;

@@ -1,10 +1,13 @@
 import "./styles.css";
 
 import {
+  type CapturedAudio,
   listMicrophones,
   microphoneErrorMessage,
   MicrophoneRecorder,
   requestMicrophonePermission,
+  SequencedPcmOutput,
+  sequencedPcm16Frames,
 } from "./audio";
 import { acceptsEvent, formatLatency } from "./state";
 import type { Catalogue, PublicConfig, Sentence, ShiftMode, StreamEvent } from "./types";
@@ -35,7 +38,7 @@ root.innerHTML = `
 
     <section class="privacy-strip" aria-label="Privacy information">
       <span class="privacy-icon">◎</span>
-      <div><strong>The transformation remains a prepared replay.</strong><br><span>The optional microphone check stays in browser memory and is cleared on reset.</span></div>
+      <div><strong id="privacyHeading">The transformation remains a prepared replay.</strong><br><span id="privacyDetail">The optional microphone check stays in browser memory and is cleared on reset.</span></div>
       <span class="replay-tag">PREPARED RUN</span>
     </section>
 
@@ -43,7 +46,7 @@ root.innerHTML = `
       <div class="microphone-copy">
         <p class="eyebrow">Local audio check</p>
         <h2 id="microphoneHeading">Try your microphone</h2>
-        <p>Hold to record up to <span id="maxSeconds">8</span> seconds, then hear your original voice. It is not uploaded or used by the prepared transformation.</p>
+        <p id="microphoneExplanation">Hold to record up to <span id="maxSeconds">8</span> seconds, then hear your original voice. It is not uploaded or used by the prepared transformation.</p>
       </div>
       <div class="microphone-controls">
         <div class="device-row">
@@ -101,13 +104,13 @@ root.innerHTML = `
         <audio id="audioPlayer" preload="auto"></audio>
         <div class="player-controls"><button id="replayButton" disabled type="button">↻ Replay result</button><button id="cancelButton" disabled type="button">■ Cancel</button><button id="resetButton" type="button">Next visitor / Reset</button></div>
       </div>
-      <p class="accuracy-note">AI-produced voices and translations are approximations and may contain errors. Replay timings illustrate the intended experience; they are not live-model measurements.</p>
+      <p id="accuracyNote" class="accuracy-note">AI-produced voices and translations are approximations and may contain errors. Replay timings illustrate the intended experience; they are not live-model measurements.</p>
     </section>
   </main>
 
   <aside id="staffPanel" class="staff-panel" aria-hidden="true">
     <div class="staff-header"><div><p class="eyebrow">Staff only</p><h2>Operator controls</h2></div><button id="closeStaff" class="icon-button" type="button">×</button></div>
-    <section><h3>Selected provider</h3><div id="providerList"></div><p class="operator-note">Provider changes are deliberately disabled in this replay-first build. A live provider must pass readiness and rehearsal gates first.</p></section>
+    <section><h3>Selected provider</h3><div id="providerList"></div><p id="providerNote" class="operator-note">Replay is ready. The deterministic mock contract is available only for supervised development testing.</p></section>
     <section><h3>Session diagnostics</h3><dl class="diagnostics"><div><dt>Connection</dt><dd id="connectionState">Idle</dd></div><div><dt>Session</dt><dd id="sessionState">None</dd></div><div><dt>Microphone</dt><dd id="microphoneDiagnostic">Inactive</dd></div><div><dt>Storage</dt><dd>Memory only</dd></div><div><dt>Port status</dt><dd id="portState">Development proposal</dd></div></dl></section>
     <button id="staffReset" class="danger-button" type="button">Cancel and clear session</button>
   </aside>
@@ -137,6 +140,9 @@ let microphonePermission = false;
 let localAudioUrl: string | null = null;
 let finishingCapture = false;
 let recordIntent = false;
+let capturedAudio: CapturedAudio | null = null;
+let streamedOutput: SequencedPcmOutput | null = null;
+let streamedOutputSampleRate = 16_000;
 
 const audio = element<HTMLAudioElement>("#audioPlayer");
 const localAudio = element<HTMLAudioElement>("#localAudioPlayer");
@@ -156,6 +162,38 @@ function updateMicrophoneState(message: string, state: "inactive" | "ready" | "r
   }[state];
   recordButton.classList.toggle("recording", state === "recording");
   element("#recordHint").textContent = state === "recording" ? "Release to stop" : "Microphone is off";
+}
+
+function updateStartAvailability(): void {
+  const isMock = config?.provider === "mock-modeldeck";
+  startButton.disabled = isMock && !capturedAudio;
+  const title = startButton.querySelector("b");
+  const detail = startButton.querySelector("small");
+  if (title) title.textContent = isMock ? "Run mock pipeline" : "Play the transformation";
+  if (detail) detail.textContent = isMock
+    ? (capturedAudio ? "Streams your captured PCM to a deterministic mock" : "Record a local sample first")
+    : "About 3 seconds";
+}
+
+function updateProviderPresentation(): void {
+  const isMock = config.provider === "mock-modeldeck";
+  element("#providerLabel").textContent = config.provider_label;
+  element("#privacyHeading").textContent = isMock
+    ? "Development mock contract is selected."
+    : "The transformation remains a prepared replay.";
+  element("#privacyDetail").textContent = isMock
+    ? "Captured PCM crosses only to the local SpeechShift backend; text and output audio are deterministic fixtures."
+    : "The optional microphone check stays in browser memory and is cleared on reset.";
+  element("#microphoneExplanation").innerHTML = isMock
+    ? `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds. The local backend validates this PCM stream, but mock text and output are fixtures.`
+    : `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds, then hear your original voice. It is not uploaded or used by the prepared transformation.`;
+  element("#accuracyNote").textContent = isMock
+    ? "Mock contract mode validates transport and interface behaviour only. Transcript, translation, timing and output audio are deterministic fixtures—not AI results."
+    : "AI-produced voices and translations are approximations and may contain errors. Replay timings illustrate the intended experience; they are not live-model measurements.";
+  element("#providerNote").textContent = isMock
+    ? "Mock contract is selected. It sends bounded audio to the local backend and uses deterministic fixtures. Switch back to Replay for the public story."
+    : "Replay is selected. The deterministic mock contract is available only for supervised development testing.";
+  updateStartAvailability();
 }
 
 async function refreshMicrophones(): Promise<void> {
@@ -196,8 +234,10 @@ function revokeLocalAudio(): void {
   localAudio.removeAttribute("src");
   if (localAudioUrl) URL.revokeObjectURL(localAudioUrl);
   localAudioUrl = null;
+  capturedAudio = null;
   element<HTMLButtonElement>("#playOriginal").disabled = true;
   element<HTMLButtonElement>("#clearOriginal").disabled = true;
+  updateStartAvailability();
 }
 
 async function beginMicrophoneCapture(): Promise<void> {
@@ -229,12 +269,14 @@ async function finishMicrophoneCapture(limitMessage?: string): Promise<void> {
       return;
     }
     localAudioUrl = URL.createObjectURL(captured.wav);
+    capturedAudio = captured;
     localAudio.src = localAudioUrl;
     localAudio.volume = muted ? 0 : config.safe_output_volume;
     element<HTMLButtonElement>("#playOriginal").disabled = false;
     element<HTMLButtonElement>("#clearOriginal").disabled = false;
     const duration = captured.durationSeconds.toFixed(1);
     updateMicrophoneState(limitMessage ?? `Captured ${duration} seconds in browser memory.`, "captured");
+    updateStartAvailability();
   } catch (error) {
     updateMicrophoneState(microphoneErrorMessage(error), "error");
   } finally {
@@ -310,7 +352,10 @@ function setMode(nextMode: ShiftMode): void {
 
 function resetJourney(): void {
   lastSequence = 0;
+  if (lastAudioUrl?.startsWith("blob:")) URL.revokeObjectURL(lastAudioUrl);
   lastAudioUrl = null;
+  streamedOutput?.clear();
+  streamedOutput = null;
   audio.pause();
   audio.removeAttribute("src");
   element("#transcript").textContent = "Waiting…";
@@ -318,7 +363,7 @@ function resetJourney(): void {
   element("#outputLabel").textContent = "Waiting…";
   element("#latency").textContent = "Ready for a prepared run";
   document.querySelectorAll(".stage").forEach((stage) => stage.classList.remove("active", "complete"));
-  startButton.disabled = false;
+  updateStartAvailability();
   cancelButton.disabled = true;
   replayButton.disabled = true;
   stopWaveform();
@@ -338,7 +383,9 @@ function handleEvent(event: StreamEvent): void {
   if (!acceptsEvent(event, generation, lastSequence)) return;
   if (event.sequence !== undefined) lastSequence = event.sequence;
   if (event.stage) setStage(event.stage);
-  if (event.type === "transcript_final") element("#transcript").textContent = event.text ?? "";
+  if (event.type === "transcript_partial" || event.type === "transcript_final") {
+    element("#transcript").textContent = event.text ?? "";
+  }
   if (event.type === "translation_final") element("#translation").textContent = event.text ?? "";
   if (event.type === "state" && event.stage === "generated") element("#outputLabel").textContent = event.detail ?? "Generating…";
   if (event.type === "audio" && event.audio_url) {
@@ -352,18 +399,54 @@ function handleEvent(event: StreamEvent): void {
     }
     startWaveform();
   }
+  if (event.type === "audio_start") {
+    streamedOutput?.clear();
+    streamedOutput = new SequencedPcmOutput(2_000_000);
+    streamedOutputSampleRate = event.audio_format?.sample_rate_hz ?? config.audio_sample_rate;
+    element("#outputLabel").textContent = event.label ?? "Receiving mock audio…";
+  }
+  if (event.type === "audio_end" && streamedOutput) {
+    if (lastAudioUrl?.startsWith("blob:")) URL.revokeObjectURL(lastAudioUrl);
+    lastAudioUrl = URL.createObjectURL(streamedOutput.consumeWav(streamedOutputSampleRate));
+    streamedOutput = null;
+    audio.src = lastAudioUrl;
+    audio.volume = muted ? 0 : config.safe_output_volume;
+    replayButton.disabled = false;
+    void audio.play().catch(() => undefined);
+    startWaveform();
+  }
   if (event.type === "metrics" && event.first_audio_latency_ms !== undefined) {
-    element("#latency").textContent = formatLatency(event.first_audio_latency_ms, Boolean(event.replay_timing));
+    element("#latency").textContent = formatLatency(
+      event.first_audio_latency_ms,
+      Boolean(event.replay_timing),
+      Boolean(event.mock_timing),
+    );
   }
   if (event.type === "complete") {
     document.querySelectorAll(".stage").forEach((stage) => stage.classList.add("complete"));
-    startButton.disabled = false;
+    updateStartAvailability();
     cancelButton.disabled = true;
     element("#sessionState").textContent = "Complete";
   }
   if (event.type === "cancelled") {
     resetJourney();
     element("#sessionState").textContent = "Cancelled";
+  }
+  if (event.type === "error") {
+    element("#latency").textContent = `Pipeline error: ${event.code ?? "unknown"}`;
+    cancelButton.disabled = true;
+    updateStartAvailability();
+  }
+}
+
+function handleBinaryOutput(frame: ArrayBuffer): void {
+  try {
+    if (!streamedOutput) throw new Error("Unexpected output audio frame");
+    streamedOutput.append(frame);
+  } catch (error) {
+    streamedOutput?.clear();
+    streamedOutput = null;
+    showError(error);
   }
 }
 
@@ -374,12 +457,16 @@ async function createAndConnectSession(): Promise<void> {
   sessionId = data.session_id;
   generation = data.generation;
   socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/sessions/${sessionId}`);
+  socket.binaryType = "arraybuffer";
   await new Promise<void>((resolve, reject) => {
     if (!socket) return reject(new Error("WebSocket unavailable"));
     socket.addEventListener("open", () => resolve(), { once: true });
     socket.addEventListener("error", () => reject(new Error("Replay connection failed")), { once: true });
   });
-  socket.addEventListener("message", (message) => handleEvent(JSON.parse(message.data) as StreamEvent));
+  socket.addEventListener("message", (message) => {
+    if (message.data instanceof ArrayBuffer) handleBinaryOutput(message.data);
+    else handleEvent(JSON.parse(String(message.data)) as StreamEvent);
+  });
   socket.addEventListener("close", () => { element("#connectionState").textContent = "Disconnected"; });
   element("#connectionState").textContent = "Connected";
   element("#sessionState").textContent = `Active · ${sessionId.slice(0, 6)}`;
@@ -390,9 +477,40 @@ async function startRun(): Promise<void> {
   resetJourney();
   startButton.disabled = true;
   cancelButton.disabled = false;
-  element("#latency").textContent = "Prepared sequence running…";
   element("#journey").scrollIntoView({ behavior: "smooth", block: "start" });
-  socket?.send(JSON.stringify({ command: "start", request: { mode, sentence_id: selectedSentence, selection_id: selectedOption } }));
+  if (config.provider === "mock-modeldeck") {
+    if (!capturedAudio) throw new Error("Record a local sample before running the mock contract.");
+    element("#latency").textContent = "Sending bounded PCM to deterministic mock…";
+    socket?.send(JSON.stringify({
+      command: "start_mock",
+      request: {
+        mode,
+        sentence_id: selectedSentence,
+        selection_id: selectedOption,
+        audio_format: { encoding: "pcm_s16le", sample_rate_hz: capturedAudio.sampleRate, channels: 1 },
+      },
+    }));
+    await sendBinaryFrames(sequencedPcm16Frames(capturedAudio.samples));
+    socket?.send(JSON.stringify({ command: "end_audio" }));
+  } else {
+    element("#latency").textContent = "Prepared sequence running…";
+    socket?.send(JSON.stringify({
+      command: "start",
+      request: { mode, sentence_id: selectedSentence, selection_id: selectedOption },
+    }));
+  }
+}
+
+async function sendBinaryFrames(frames: ArrayBuffer[]): Promise<void> {
+  if (!socket || socket.readyState !== WebSocket.OPEN) throw new Error("Pipeline connection is unavailable");
+  const deadline = performance.now() + 3_000;
+  for (const frame of frames) {
+    while (socket.bufferedAmount > 64 * 1024) {
+      if (performance.now() > deadline) throw new Error("Audio upload backpressure timeout");
+      await new Promise((resolve) => window.setTimeout(resolve, 10));
+    }
+    socket.send(frame);
+  }
 }
 
 async function clearSession(): Promise<void> {
@@ -440,14 +558,35 @@ function stopWaveform(): void {
 
 function renderProviders(): void {
   element("#providerList").replaceChildren(...config.providers.map((provider) => {
-    const row = document.createElement("div");
+    const row = document.createElement("button");
+    row.type = "button";
     row.className = `provider-row ${provider.id === config.provider ? "selected" : ""}`;
     row.innerHTML = `<span class="provider-radio"></span><div><b></b><small></small></div><span class="provider-state"></span>`;
     row.querySelector("b")!.textContent = provider.label;
     row.querySelector("small")!.textContent = provider.detail;
     row.querySelector<HTMLElement>(".provider-state")!.textContent = provider.state === "ready" ? "Ready" : "Unavailable";
+    row.disabled = provider.state !== "ready" || provider.id === config.provider;
+    if (provider.state === "ready") {
+      row.addEventListener("click", () => void selectProvider(provider.id).catch(showError));
+    }
     return row;
   }));
+}
+
+async function selectProvider(provider: string): Promise<void> {
+  await clearSession();
+  const response = await fetch("/api/providers/select", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider }),
+  });
+  if (!response.ok) {
+    const error = await response.json() as { detail?: string };
+    throw new Error(error.detail ?? "Provider selection failed");
+  }
+  config = await response.json() as PublicConfig;
+  renderProviders();
+  updateProviderPresentation();
 }
 
 async function initialise(): Promise<void> {
@@ -466,10 +605,9 @@ async function initialise(): Promise<void> {
       void clearMicrophoneCapture("Microphone disconnected. The local recording was cleared.");
     },
   });
-  element("#providerLabel").textContent = config.provider_label;
-  element("#maxSeconds").textContent = String(config.max_input_seconds);
   element("#portState").textContent = config.port_allocation_confirmed ? "Confirmed" : "Development proposal";
   renderProviders();
+  updateProviderPresentation();
   renderChoices();
 
   document.querySelectorAll<HTMLButtonElement>(".mode-tab").forEach((tab) => tab.addEventListener("click", () => setMode(tab.dataset.mode as ShiftMode)));
@@ -541,7 +679,8 @@ async function initialise(): Promise<void> {
 
 function showError(error: unknown): void {
   element("#latency").textContent = error instanceof Error ? error.message : "A local error occurred";
-  startButton.disabled = false; cancelButton.disabled = true;
+  updateStartAvailability();
+  cancelButton.disabled = true;
 }
 
 void initialise().catch(showError);

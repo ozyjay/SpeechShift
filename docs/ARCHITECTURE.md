@@ -22,10 +22,13 @@ PySide6 remains proven for VoiceChanger's direct DSP path, but using it here wou
 The interface is intentionally explicit:
 
 - `replay`: implemented and ready without a live model;
+- `mock-modeldeck`: development-only contract simulator with no model;
 - `local`: reserved for repository-local model experiments, currently unavailable;
 - `modeldeck`: reserved for the stable ModelDeck gateway, currently unavailable.
 
 There is no automatic provider switching. Future fallback requires a visible staff action. A live provider failure must not mutate the configured provider.
+
+Staff can explicitly switch between Replay and Mock contract without restarting the UI. Mock is rejected outside development mode. Local and real ModelDeck selections return a structured not-ready response.
 
 ## Session lifecycle
 
@@ -43,7 +46,9 @@ Microphone capture is intentionally independent of the replay provider:
 6. A completed recording is resampled to mono 16 kHz PCM and encoded as an in-memory WAV for local playback.
 7. Clear, reset or page exit revokes the object URL and discards the samples.
 
-No microphone frame or WAV crosses the browser/backend boundary in this phase. Future live providers must add an explicit transport step and preserve the same bounds and cleanup guarantees.
+Replay mode keeps every microphone frame and WAV in the browser. Mock contract mode adds an explicit transport step: mono 16 kHz PCM16 is divided into sequenced binary frames, sent with backpressure over the session WebSocket and accumulated in a backend buffer capped at eight seconds. Mock output uses the same sequenced binary framing in reverse. The browser rebuilds a memory-only WAV and revokes it on reset.
+
+The mock emits deterministic partial/final text and prepared audio fixtures. Every event carries `mock: true`; fixture text and mock timing are additionally labelled. It validates integration behaviour but provides no evidence that a speech model works.
 
 ## Port status
 

@@ -16,6 +16,20 @@ class ReplayRunRequest(BaseModel):
     selection_id: str = Field(min_length=1, max_length=64)
 
 
+class AudioFormat(BaseModel):
+    encoding: str
+    sample_rate_hz: int = Field(ge=8_000, le=48_000)
+    channels: int = Field(ge=1, le=2)
+
+
+class MockRunRequest(ReplayRunRequest):
+    audio_format: AudioFormat
+
+
+class ProviderSelection(BaseModel):
+    provider: str
+
+
 class SessionCreated(BaseModel):
     session_id: str
     generation: int

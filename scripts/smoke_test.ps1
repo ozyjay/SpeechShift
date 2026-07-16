@@ -8,5 +8,12 @@ $Catalogue = Invoke-RestMethod -Uri "$BaseUrl/api/replay/catalogue" -TimeoutSec 
 if ($Catalogue.sentences.Count -lt 3) {
     throw "SpeechShift replay catalogue is incomplete."
 }
-Write-Host "SpeechShift smoke test passed: replay ready with $($Catalogue.sentences.Count) sentences."
-
+$Config = Invoke-RestMethod -Uri "$BaseUrl/api/config" -TimeoutSec 5
+if ($Config.audio_sample_rate -ne 16000 -or $Config.max_input_seconds -gt 8) {
+    throw "SpeechShift audio capture configuration is unsafe or unexpected."
+}
+$Worklet = Invoke-WebRequest -Uri "$BaseUrl/audio-worklet.js" -TimeoutSec 5
+if ($Worklet.StatusCode -ne 200 -or $Worklet.Content -notmatch "speechshift-capture") {
+    throw "SpeechShift audio capture worklet is unavailable."
+}
+Write-Host "SpeechShift smoke test passed: replay ready, audio capture bounded, and $($Catalogue.sentences.Count) sentences available."

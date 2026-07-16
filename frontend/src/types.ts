@@ -41,6 +41,7 @@ export interface PublicConfig {
   demo_mode: string;
   provider: string;
   provider_label: string;
+  audio_sample_rate: number;
   max_input_seconds: number;
   safe_output_volume: number;
   port_allocation_confirmed: boolean;
@@ -62,4 +63,3 @@ export interface StreamEvent {
   replay_timing?: boolean;
   code?: string;
 }
-

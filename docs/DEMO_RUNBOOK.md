@@ -5,16 +5,17 @@
 1. Confirm headphones are connected and output volume is comfortable.
 2. Run `scripts/start_dev.ps1` until OpenDayOps formally allocates the port; after allocation use `scripts/start_openday.ps1` with the required confirmation setting.
 3. Open `http://127.0.0.1:3800` and run `scripts/smoke_test.ps1`.
-4. Play one Voice Shift and one Language Shift result.
-5. Confirm the header says **Replay mode**, the microphone says **off**, and reset clears the result.
+4. Grant microphone permission, choose the booth microphone, record a short local check and confirm the level meter and playback.
+5. Clear that check, then play one Voice Shift and one Language Shift result.
+6. Confirm the header says **Replay mode**, the microphone is inactive outside recording, and reset clears both local and replay audio.
 
 ## Visitor script
 
-“This prepared run shows the same stages a live speech system uses. It recognises words, can translate their meaning, and generates new audio. The generated voice and translation are approximations and can be wrong.”
+“You can check your microphone locally; that recording stays in browser memory. The transformation is still a prepared run showing the stages a live speech system uses. Generated voices and translations are approximations and can be wrong.”
 
 ## Between visitors
 
-Select **Next visitor / Reset**. Confirm playback stops, the journey returns to waiting, and the staff session diagnostic says cleared.
+Select **Next visitor / Reset**. Confirm microphone capture and playback stop, the local recording is unavailable, the journey returns to waiting, and the staff session diagnostic says cleared.
 
 ## Recovery
 

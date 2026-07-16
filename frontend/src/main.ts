@@ -1,5 +1,11 @@
 import "./styles.css";
 
+import {
+  listMicrophones,
+  microphoneErrorMessage,
+  MicrophoneRecorder,
+  requestMicrophonePermission,
+} from "./audio";
 import { acceptsEvent, formatLatency } from "./state";
 import type { Catalogue, PublicConfig, Sentence, ShiftMode, StreamEvent } from "./types";
 
@@ -22,15 +28,38 @@ root.innerHTML = `
 
   <main>
     <section class="hero">
-      <p class="eyebrow">A prepared AI speech demonstration</p>
+      <p class="eyebrow">A local-first AI speech demonstration</p>
       <h1>One sentence.<br><em>A whole new sound.</em></h1>
       <p class="hero-copy">Hear how a speech system can regenerate words with different vocal characteristics—or translate their meaning into another language.</p>
     </section>
 
     <section class="privacy-strip" aria-label="Privacy information">
       <span class="privacy-icon">◎</span>
-      <div><strong>Replay mode uses prepared audio.</strong><br><span>The microphone is off. No visitor audio or personal details are collected.</span></div>
+      <div><strong>The transformation remains a prepared replay.</strong><br><span>The optional microphone check stays in browser memory and is cleared on reset.</span></div>
       <span class="replay-tag">PREPARED RUN</span>
+    </section>
+
+    <section class="microphone-card" aria-labelledby="microphoneHeading">
+      <div class="microphone-copy">
+        <p class="eyebrow">Local audio check</p>
+        <h2 id="microphoneHeading">Try your microphone</h2>
+        <p>Hold to record up to <span id="maxSeconds">8</span> seconds, then hear your original voice. It is not uploaded or used by the prepared transformation.</p>
+      </div>
+      <div class="microphone-controls">
+        <div class="device-row">
+          <select id="microphoneSelect" aria-label="Microphone device" disabled><option>Permission required</option></select>
+          <button id="enableMicrophone" class="secondary-button" type="button">Enable microphone</button>
+        </div>
+        <div class="capture-row">
+          <button id="recordButton" class="record-button" type="button" disabled><span class="record-dot"></span><span><b>Hold to record</b><small id="recordHint">Microphone is off</small></span></button>
+          <div class="level-shell" aria-label="Live microphone level"><span id="inputLevel"></span></div>
+          <button id="playOriginal" class="secondary-button" type="button" disabled>▶ Play original</button>
+          <button id="clearOriginal" class="text-button" type="button" disabled>Clear</button>
+        </div>
+        <audio id="localAudioPlayer" preload="metadata"></audio>
+        <p id="microphoneStatus" class="microphone-status" role="status">Microphone inactive. Replay is ready without permission.</p>
+      </div>
+      <span class="memory-badge">MEMORY ONLY</span>
     </section>
 
     <section class="experience-card">
@@ -51,7 +80,7 @@ root.innerHTML = `
       </div>
 
       <div class="action-row">
-        <div class="mic-state"><span class="mic-off">×</span><div><strong>Microphone off</strong><small>Replay uses an approved prepared sentence</small></div></div>
+        <div class="mic-state"><span class="mic-off">R</span><div><strong>Prepared transformation</strong><small>Your microphone recording is not sent to replay</small></div></div>
         <button id="startButton" class="start-button" type="button"><span class="play-icon">▶</span><span><b>Play the transformation</b><small>About 3 seconds</small></span></button>
       </div>
     </section>
@@ -79,7 +108,7 @@ root.innerHTML = `
   <aside id="staffPanel" class="staff-panel" aria-hidden="true">
     <div class="staff-header"><div><p class="eyebrow">Staff only</p><h2>Operator controls</h2></div><button id="closeStaff" class="icon-button" type="button">×</button></div>
     <section><h3>Selected provider</h3><div id="providerList"></div><p class="operator-note">Provider changes are deliberately disabled in this replay-first build. A live provider must pass readiness and rehearsal gates first.</p></section>
-    <section><h3>Session diagnostics</h3><dl class="diagnostics"><div><dt>Connection</dt><dd id="connectionState">Idle</dd></div><div><dt>Session</dt><dd id="sessionState">None</dd></div><div><dt>Storage</dt><dd>Memory only</dd></div><div><dt>Port status</dt><dd id="portState">Development proposal</dd></div></dl></section>
+    <section><h3>Session diagnostics</h3><dl class="diagnostics"><div><dt>Connection</dt><dd id="connectionState">Idle</dd></div><div><dt>Session</dt><dd id="sessionState">None</dd></div><div><dt>Microphone</dt><dd id="microphoneDiagnostic">Inactive</dd></div><div><dt>Storage</dt><dd>Memory only</dd></div><div><dt>Port status</dt><dd id="portState">Development proposal</dd></div></dl></section>
     <button id="staffReset" class="danger-button" type="button">Cancel and clear session</button>
   </aside>
   <div id="scrim" class="scrim"></div>
@@ -103,11 +132,123 @@ let socket: WebSocket | null = null;
 let lastAudioUrl: string | null = null;
 let muted = false;
 let animationFrame = 0;
+let microphoneRecorder: MicrophoneRecorder;
+let microphonePermission = false;
+let localAudioUrl: string | null = null;
+let finishingCapture = false;
+let recordIntent = false;
 
 const audio = element<HTMLAudioElement>("#audioPlayer");
+const localAudio = element<HTMLAudioElement>("#localAudioPlayer");
 const startButton = element<HTMLButtonElement>("#startButton");
 const cancelButton = element<HTMLButtonElement>("#cancelButton");
 const replayButton = element<HTMLButtonElement>("#replayButton");
+const recordButton = element<HTMLButtonElement>("#recordButton");
+
+function updateMicrophoneState(message: string, state: "inactive" | "ready" | "recording" | "captured" | "error"): void {
+  element("#microphoneStatus").textContent = message;
+  element("#microphoneDiagnostic").textContent = {
+    inactive: "Inactive",
+    ready: "Ready · inactive",
+    recording: "Recording",
+    captured: "Captured in memory",
+    error: "Needs attention",
+  }[state];
+  recordButton.classList.toggle("recording", state === "recording");
+  element("#recordHint").textContent = state === "recording" ? "Release to stop" : "Microphone is off";
+}
+
+async function refreshMicrophones(): Promise<void> {
+  if (!microphonePermission) return;
+  const select = element<HTMLSelectElement>("#microphoneSelect");
+  const previous = select.value;
+  const devices = await listMicrophones();
+  select.replaceChildren(...devices.map((device, index) => {
+    const option = document.createElement("option");
+    option.value = device.deviceId;
+    option.textContent = device.label || `Microphone ${index + 1}`;
+    return option;
+  }));
+  select.disabled = devices.length === 0;
+  if (devices.some((device) => device.deviceId === previous)) select.value = previous;
+  recordButton.disabled = devices.length === 0;
+  if (devices.length === 0) updateMicrophoneState("No microphone is currently available.", "error");
+}
+
+async function enableMicrophone(): Promise<void> {
+  const button = element<HTMLButtonElement>("#enableMicrophone");
+  button.disabled = true;
+  updateMicrophoneState("Waiting for microphone permission…", "inactive");
+  try {
+    await requestMicrophonePermission();
+    microphonePermission = true;
+    await refreshMicrophones();
+    button.textContent = "Permission granted";
+    updateMicrophoneState("Ready. The microphone remains off until you hold the record button.", "ready");
+  } catch (error) {
+    button.disabled = false;
+    updateMicrophoneState(microphoneErrorMessage(error), "error");
+  }
+}
+
+function revokeLocalAudio(): void {
+  localAudio.pause();
+  localAudio.removeAttribute("src");
+  if (localAudioUrl) URL.revokeObjectURL(localAudioUrl);
+  localAudioUrl = null;
+  element<HTMLButtonElement>("#playOriginal").disabled = true;
+  element<HTMLButtonElement>("#clearOriginal").disabled = true;
+}
+
+async function beginMicrophoneCapture(): Promise<void> {
+  if (!microphonePermission || microphoneRecorder.recording || finishingCapture) return;
+  revokeLocalAudio();
+  audio.pause();
+  const selectedDevice = element<HTMLSelectElement>("#microphoneSelect").value;
+  updateMicrophoneState("Starting microphone…", "inactive");
+  try {
+    await microphoneRecorder.start(selectedDevice);
+    if (!recordIntent) {
+      await finishMicrophoneCapture();
+      return;
+    }
+    updateMicrophoneState("Recording locally. Release the button to stop.", "recording");
+  } catch (error) {
+    updateMicrophoneState(microphoneErrorMessage(error), "error");
+  }
+}
+
+async function finishMicrophoneCapture(limitMessage?: string): Promise<void> {
+  if (!microphoneRecorder.recording || finishingCapture) return;
+  finishingCapture = true;
+  updateMicrophoneState("Finishing local recording…", "inactive");
+  try {
+    const captured = await microphoneRecorder.stop();
+    if (!captured || captured.durationSeconds < 0.15) {
+      updateMicrophoneState("That recording was too short. Hold the button a little longer.", "ready");
+      return;
+    }
+    localAudioUrl = URL.createObjectURL(captured.wav);
+    localAudio.src = localAudioUrl;
+    localAudio.volume = muted ? 0 : config.safe_output_volume;
+    element<HTMLButtonElement>("#playOriginal").disabled = false;
+    element<HTMLButtonElement>("#clearOriginal").disabled = false;
+    const duration = captured.durationSeconds.toFixed(1);
+    updateMicrophoneState(limitMessage ?? `Captured ${duration} seconds in browser memory.`, "captured");
+  } catch (error) {
+    updateMicrophoneState(microphoneErrorMessage(error), "error");
+  } finally {
+    finishingCapture = false;
+  }
+}
+
+async function clearMicrophoneCapture(message = "Local recording cleared. Microphone inactive."): Promise<void> {
+  if (microphoneRecorder?.recording) await microphoneRecorder.cancel();
+  finishingCapture = false;
+  revokeLocalAudio();
+  element<HTMLElement>("#inputLevel").style.width = "0%";
+  updateMicrophoneState(message, microphonePermission ? "ready" : "inactive");
+}
 
 function currentSentence(): Sentence {
   const sentence = catalogue.sentences.find((item) => item.id === selectedSentence);
@@ -263,6 +404,7 @@ async function clearSession(): Promise<void> {
   generation += 1;
   element("#connectionState").textContent = "Idle";
   element("#sessionState").textContent = "Cleared";
+  await clearMicrophoneCapture();
   resetJourney();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -313,19 +455,72 @@ async function initialise(): Promise<void> {
   if (!configResponse.ok || !catalogueResponse.ok) throw new Error("SpeechShift could not load its local replay data");
   config = await configResponse.json() as PublicConfig;
   catalogue = await catalogueResponse.json() as Catalogue;
+  microphoneRecorder = new MicrophoneRecorder(config.audio_sample_rate, config.max_input_seconds, {
+    onLevel: (level) => { element<HTMLElement>("#inputLevel").style.width = `${Math.round(level * 100)}%`; },
+    onLimitReached: () => {
+      recordIntent = false;
+      void finishMicrophoneCapture(`Maximum ${config.max_input_seconds} seconds captured in browser memory.`);
+    },
+    onDeviceEnded: () => {
+      recordIntent = false;
+      void clearMicrophoneCapture("Microphone disconnected. The local recording was cleared.");
+    },
+  });
   element("#providerLabel").textContent = config.provider_label;
+  element("#maxSeconds").textContent = String(config.max_input_seconds);
   element("#portState").textContent = config.port_allocation_confirmed ? "Confirmed" : "Development proposal";
   renderProviders();
   renderChoices();
 
   document.querySelectorAll<HTMLButtonElement>(".mode-tab").forEach((tab) => tab.addEventListener("click", () => setMode(tab.dataset.mode as ShiftMode)));
   startButton.addEventListener("click", () => void startRun().catch(showError));
-  cancelButton.addEventListener("click", () => socket?.send(JSON.stringify({ command: "cancel" })));
+  cancelButton.addEventListener("click", () => {
+    socket?.send(JSON.stringify({ command: "cancel" }));
+    recordIntent = false;
+    if (microphoneRecorder.recording) void clearMicrophoneCapture("Recording cancelled and cleared.");
+  });
   replayButton.addEventListener("click", () => { if (lastAudioUrl) { audio.src = lastAudioUrl; void audio.play(); startWaveform(); } });
+  element("#enableMicrophone").addEventListener("click", () => void enableMicrophone());
+  element("#playOriginal").addEventListener("click", () => {
+    localAudio.currentTime = 0;
+    localAudio.volume = muted ? 0 : config.safe_output_volume;
+    void localAudio.play();
+  });
+  element("#clearOriginal").addEventListener("click", () => void clearMicrophoneCapture());
+  recordButton.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    recordIntent = true;
+    recordButton.setPointerCapture(event.pointerId);
+    void beginMicrophoneCapture();
+  });
+  recordButton.addEventListener("pointerup", () => {
+    recordIntent = false;
+    void finishMicrophoneCapture();
+  });
+  recordButton.addEventListener("pointercancel", () => {
+    recordIntent = false;
+    void clearMicrophoneCapture("Recording cancelled and cleared.");
+  });
+  recordButton.addEventListener("keydown", (event) => {
+    if ((event.key === " " || event.key === "Enter") && !event.repeat) {
+      event.preventDefault();
+      recordIntent = true;
+      void beginMicrophoneCapture();
+    }
+  });
+  recordButton.addEventListener("keyup", (event) => {
+    if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      recordIntent = false;
+      void finishMicrophoneCapture();
+    }
+  });
   element("#resetButton").addEventListener("click", () => void clearSession());
   element("#staffReset").addEventListener("click", () => void clearSession());
   element("#muteButton").addEventListener("click", () => {
-    muted = !muted; audio.volume = muted ? 0 : config.safe_output_volume;
+    muted = !muted;
+    audio.volume = muted ? 0 : config.safe_output_volume;
+    localAudio.volume = muted ? 0 : config.safe_output_volume;
     const button = element<HTMLButtonElement>("#muteButton");
     button.setAttribute("aria-pressed", String(muted)); button.textContent = muted ? "×" : "◖";
   });
@@ -336,7 +531,12 @@ async function initialise(): Promise<void> {
   element("#staffButton").addEventListener("click", () => toggleStaff(true));
   element("#closeStaff").addEventListener("click", () => toggleStaff(false));
   element("#scrim").addEventListener("click", () => toggleStaff(false));
-  window.addEventListener("beforeunload", () => { socket?.close(); });
+  navigator.mediaDevices?.addEventListener("devicechange", () => void refreshMicrophones());
+  window.addEventListener("beforeunload", () => {
+    socket?.close();
+    void microphoneRecorder.cancel();
+    revokeLocalAudio();
+  });
 }
 
 function showError(error: unknown): void {
@@ -345,4 +545,3 @@ function showError(error: unknown): void {
 }
 
 void initialise().catch(showError);
-

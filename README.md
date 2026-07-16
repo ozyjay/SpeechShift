@@ -4,7 +4,7 @@ SpeechShift is a standalone, local-first Open Day demonstration of AI-produced s
 
 > Speak once. Hear your words in another voice—or another language.
 
-This first production milestone is an honest replay-first MVP. It presents prepared synthetic audio through the complete visitor story without requiring a microphone, internet connection, model download or ModelDeck. It does not pretend that a live model processed visitor speech.
+SpeechShift is an honest replay-first MVP with a separate local microphone foundation. It presents prepared synthetic audio through the complete visitor story without requiring a microphone, internet connection, model download or ModelDeck. Visitors may explicitly enable a memory-only microphone check to record and replay their original voice, but the interface does not pretend that the prepared transformation processed it.
 
 ## What works now
 
@@ -15,10 +15,14 @@ This first production milestone is an honest replay-first MVP. It presents prepa
 - Explicit `Replay mode` labelling and prepared-timing labelling.
 - One-click reset that stops playback and clears the in-memory session.
 - Immediate output mute and a safe volume ceiling.
+- Explicit microphone permission and input-device selection.
+- Hold-to-record capture with an eight-second hard limit and live input-level meter.
+- Mono 16 kHz PCM conversion and local original-audio playback entirely in browser memory.
+- Microphone unplug handling and recording cleanup on cancel, reset and page exit.
 - Unified visitor screen and staff diagnostics panel.
 - Strict privacy and ModelDeck gateway configuration checks.
 
-The microphone is deliberately inactive in this milestone. The `local` and `modeldeck` providers are visible but unavailable until their implementation and readiness gates pass.
+The microphone remains inactive until the visitor selects **Enable microphone** and then holds **Hold to record**. Releasing the button stops capture. The recording is never uploaded to the backend or connected to the replay transformation. The `local` and `modeldeck` providers remain visible but unavailable until their model implementation and readiness gates pass.
 
 ## Quick start
 

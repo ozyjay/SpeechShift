@@ -8,6 +8,8 @@
 - Keep providers explicit and live providers unavailable until rehearsed.
 - Use WebSockets and sequenced events as the transport foundation.
 - Keep visitor data in memory only and reject persistence configuration.
+- Validate microphone capture as a separate browser-only path before connecting it to any provider.
+- Use AudioWorklet with a hard-bounded buffer and resample completed capture to mono 16 kHz PCM.
 - Prefer one composite ModelDeck speech capability initially, subject to physical probes.
 
 ## Proposed externally
@@ -21,4 +23,3 @@
 - Physical microphone and output device acceptance.
 - Voice-conversion and multilingual model selection after ROCm/licence probes.
 - Exact ModelDeck speech protocol route and binary framing.
-

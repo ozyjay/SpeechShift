@@ -33,8 +33,8 @@ class PublicConfig(BaseModel):
     demo_mode: str
     provider: str
     provider_label: str
+    audio_sample_rate: int
     max_input_seconds: int
     safe_output_volume: float
     port_allocation_confirmed: bool
     providers: list[ProviderStatus]
-

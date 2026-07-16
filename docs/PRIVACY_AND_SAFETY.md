@@ -3,7 +3,9 @@
 SpeechShift implements the workspace content and safety policy with these controls:
 
 - no account or personal details;
-- microphone inactive until an explicit future visitor action;
+- microphone inactive until the visitor explicitly grants permission and holds the record control;
+- permission-check streams stop immediately, while recording streams stop on release, limit, cancellation, device loss, reset or page exit;
+- local microphone samples and playback WAVs remain in browser memory and are never uploaded in this phase;
 - no audio or transcript persistence;
 - storage and transcript logging settings are rejected when enabled;
 - non-identifying technical logs only;
@@ -14,9 +16,8 @@ SpeechShift implements the workspace content and safety policy with these contro
 - replay and prepared timing labelled in the visitor UI;
 - errors and limitations stated without claiming human-like understanding.
 
-Reset stops output, cancels active work, invalidates stale events and deletes the server session. Shutdown clears all remaining in-memory sessions.
+Reset stops microphone capture and output, revokes the local recording URL, cancels active work, invalidates stale events and deletes the server session. Shutdown clears all remaining in-memory sessions.
 
 Recommended sign:
 
 > This demonstration processes your voice during a live interaction and clears it when the session resets. Please do not say private information. Generated voices and translations may contain errors. Replay mode uses prepared audio and does not activate the microphone.
-

@@ -71,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             provider_label=(
                 "Replay mode" if settings.speech_provider is SpeechProvider.REPLAY else "Live provider"
             ),
+            audio_sample_rate=settings.audio_sample_rate,
             max_input_seconds=settings.max_input_seconds,
             safe_output_volume=settings.safe_output_volume,
             port_allocation_confirmed=settings.port_allocation_confirmed,

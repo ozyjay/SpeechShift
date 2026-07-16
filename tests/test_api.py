@@ -49,6 +49,8 @@ def test_public_config_keeps_live_providers_visibly_unavailable() -> None:
             payload = (await client.get("/api/config")).json()
         assert payload["provider"] == "replay"
         assert payload["provider_label"] == "Replay mode"
+        assert payload["audio_sample_rate"] == 16_000
+        assert payload["max_input_seconds"] == 8
         assert [provider["state"] for provider in payload["providers"]] == [
             "ready",
             "not-configured",
@@ -56,4 +58,3 @@ def test_public_config_keeps_live_providers_visibly_unavailable() -> None:
         ]
 
     asyncio.run(scenario())
-

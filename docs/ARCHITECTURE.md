@@ -9,6 +9,8 @@ PySide6 remains proven for VoiceChanger's direct DSP path, but using it here wou
 ## Components
 
 - `frontend/`: visitor experience, provider visibility, output mute/playback, stage animation and staff diagnostics.
+- `frontend/src/audio.ts`: explicit microphone permission, device discovery, bounded AudioWorklet capture, input-level monitoring, resampling and in-memory WAV encoding.
+- `frontend/public/audio-worklet.js`: low-latency mono sample frames sent only to the browser UI thread.
 - `backend/speechshift/config.py`: fail-fast runtime and privacy validation.
 - `sessions.py`: bounded, memory-only sessions with cancellation and reset generations.
 - `replay.py`: deterministic provider and catalogue validation.
@@ -29,6 +31,20 @@ There is no automatic provider switching. Future fallback requires a visible sta
 
 Create → connect WebSocket → start → stream sequenced events → complete/cancel → delete/reset. Every event carries a session generation and sequence. The UI rejects old generations and repeated sequences. Session buffers are bounded and cleared on reset or shutdown.
 
+## Local audio lifecycle
+
+Microphone capture is intentionally independent of the replay provider:
+
+1. The visitor explicitly grants browser permission. The permission-check stream is stopped immediately.
+2. Available input labels are shown and one device is selected.
+3. Holding the record control opens a new mono input stream and AudioWorklet.
+4. Frames enter a hard-bounded buffer sized from the actual device sample rate and configured duration limit.
+5. Release, the duration limit, cancellation or device loss stops tracks and closes the audio context.
+6. A completed recording is resampled to mono 16 kHz PCM and encoded as an in-memory WAV for local playback.
+7. Clear, reset or page exit revokes the object URL and discards the samples.
+
+No microphone frame or WAV crosses the browser/backend boundary in this phase. Future live providers must add an explicit transport step and preserve the same bounds and cleanup guarantees.
+
 ## Port status
 
 `3800` is a development proposal, not a confirmed exact OpenDayOps assignment. Open Day start-up is gated by explicit allocation confirmation. Required OpenDayOps changes are:
@@ -37,4 +53,3 @@ Create → connect WebSocket → start → stream sequenced events → complete/
 2. add the allocation decision to `DECISIONS_LOG.md`;
 3. add the visitor and health URLs to the runbook and staff URL sheet;
 4. add SpeechShift to whole-stack port smoke testing.
-

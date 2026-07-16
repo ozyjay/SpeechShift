@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "sentences": [
+    {
+      "id": "campus",
+      "prompt": "A warm welcome",
+      "source_text": "Welcome to Open Day. We are glad you are here.",
+      "original_audio": "campus/original.wav",
+      "duration_ms": 3300,
+      "voices": [
+        {"id": "calm-narrator", "label": "Calm narrator", "description": "A slower, steadier synthetic delivery", "audio": "campus/voice-calm.wav"},
+        {"id": "energetic-presenter", "label": "Energetic presenter", "description": "A quicker, brighter synthetic delivery", "audio": "campus/voice-energetic.wav"},
+        {"id": "robot", "label": "Artificial robot", "description": "A clearly artificial electronic voice", "audio": "campus/voice-robot.wav"}
+      ],
+      "languages": [
+        {"id": "fr", "label": "French", "text": "Bienvenue à la journée portes ouvertes. Nous sommes heureux de vous accueillir.", "audio": "campus/language-fr.wav"},
+        {"id": "de", "label": "German", "text": "Willkommen zum Tag der offenen Tür. Wir freuen uns, dass Sie hier sind.", "audio": "campus/language-de.wav"}
+      ]
+    },
+    {
+      "id": "robots",
+      "prompt": "Curious robots",
+      "source_text": "Robots can help us explore places that are hard to reach.",
+      "original_audio": "robots/original.wav",
+      "duration_ms": 3700,
+      "voices": [
+        {"id": "calm-narrator", "label": "Calm narrator", "description": "A slower, steadier synthetic delivery", "audio": "robots/voice-calm.wav"},
+        {"id": "energetic-presenter", "label": "Energetic presenter", "description": "A quicker, brighter synthetic delivery", "audio": "robots/voice-energetic.wav"},
+        {"id": "robot", "label": "Artificial robot", "description": "A clearly artificial electronic voice", "audio": "robots/voice-robot.wav"}
+      ],
+      "languages": [
+        {"id": "fr", "label": "French", "text": "Les robots peuvent nous aider à explorer des endroits difficiles d'accès.", "audio": "robots/language-fr.wav"},
+        {"id": "de", "label": "German", "text": "Roboter können uns helfen, schwer erreichbare Orte zu erkunden.", "audio": "robots/language-de.wav"}
+      ]
+    },
+    {
+      "id": "ideas",
+      "prompt": "Ideas for tomorrow",
+      "source_text": "Small ideas can grow into technology that changes the future.",
+      "original_audio": "ideas/original.wav",
+      "duration_ms": 3900,
+      "voices": [
+        {"id": "calm-narrator", "label": "Calm narrator", "description": "A slower, steadier synthetic delivery", "audio": "ideas/voice-calm.wav"},
+        {"id": "energetic-presenter", "label": "Energetic presenter", "description": "A quicker, brighter synthetic delivery", "audio": "ideas/voice-energetic.wav"},
+        {"id": "robot", "label": "Artificial robot", "description": "A clearly artificial electronic voice", "audio": "ideas/voice-robot.wav"}
+      ],
+      "languages": [
+        {"id": "fr", "label": "French", "text": "De petites idées peuvent devenir des technologies qui changent l'avenir.", "audio": "ideas/language-fr.wav"},
+        {"id": "de", "label": "German", "text": "Kleine Ideen können zu Technologien werden, die die Zukunft verändern.", "audio": "ideas/language-de.wav"}
+      ]
+    }
+  ]
+}
+

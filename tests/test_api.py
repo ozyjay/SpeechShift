@@ -19,6 +19,7 @@ def test_health_reports_replay_without_claiming_live_readiness() -> None:
             "replay_ready": True,
             "live_provider_ready": False,
             "mock_provider_ready": True,
+            "local_dsp_ready": True,
             "storage": "memory-only",
         }
 
@@ -55,7 +56,7 @@ def test_public_config_keeps_live_providers_visibly_unavailable() -> None:
         assert [provider["state"] for provider in payload["providers"]] == [
             "ready",
             "ready",
-            "not-configured",
+            "ready",
             "not-configured",
         ]
 

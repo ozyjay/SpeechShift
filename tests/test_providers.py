@@ -13,9 +13,17 @@ def test_mock_provider_is_explicit_and_development_only() -> None:
         open_day.select("mock-modeldeck")
 
 
-@pytest.mark.parametrize("provider", ["local", "modeldeck"])
-def test_unready_live_providers_cannot_be_selected(provider: str) -> None:
+def test_local_dsp_is_explicit_and_development_only() -> None:
+    registry = ProviderRegistry(SpeechProvider.REPLAY, DemoMode.DEVELOPMENT)
+    assert registry.select("local") is SpeechProvider.LOCAL
+    assert registry.label == "Local DSP"
+
+    open_day = ProviderRegistry(SpeechProvider.REPLAY, DemoMode.OPEN_DAY)
+    with pytest.raises(ProviderSelectionError, match="development-only"):
+        open_day.select("local")
+
+
+def test_unready_modeldeck_provider_cannot_be_selected() -> None:
     registry = ProviderRegistry(SpeechProvider.REPLAY, DemoMode.DEVELOPMENT)
     with pytest.raises(ProviderSelectionError, match="not ready"):
-        registry.select(provider)
-
+        registry.select("modeldeck")

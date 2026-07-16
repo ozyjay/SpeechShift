@@ -9,7 +9,7 @@ The public experience offers two constrained modes:
 - **Voice Shift:** regenerate the same words with a non-identifying synthetic vocal style.
 - **Language Shift:** show spoken audio, recognised words, translated meaning and generated speech.
 
-This release uses a prepared replay for transformation. A separate, explicitly enabled microphone check lets visitors record and replay their original voice in browser memory, but that audio is not sent to the replay pipeline. Later live-provider milestones must preserve the same clear state, reset and privacy controls.
+This release uses prepared replay for the complete AI story. A separate, explicitly enabled microphone check lets visitors record and replay their original voice in browser memory. In supervised development, Local DSP can process that real recording as a non-AI Voice Shift baseline, while Mock contract validates streaming with fixture output. Later model-backed milestones must preserve the same clear state, reset and privacy controls.
 
 ## Public boundaries
 

@@ -28,6 +28,10 @@ Select **Next visitor / Reset**. Confirm microphone capture and playback stop, t
 
 Open **Operator controls** and explicitly choose **Mock contract**. Record a short sample, then select **Run mock pipeline**. Explain that the input transport is real but the transcript, translation, timing and output audio are deterministic fixtures. Return the provider to **Replay** before public operation. Mock contract is rejected in Open Day mode.
 
+## Local DSP check
+
+Open **Operator controls** and choose **Local DSP**. Record the curated sentence, select each voice profile and use **Apply local voice shift**. Confirm output is clear, bounded and recognisably changed. Explain that this baseline uses ordinary signal processing rather than AI. Language Shift is deliberately unavailable. Return to **Replay** before public operation until Local DSP passes event acceptance.
+
 ## Shutdown
 
 Reset the active session, close the browser and interrupt the foreground SpeechShift process. If it is detached, use `scripts/stop.ps1`, which refuses to stop a process that does not identify as SpeechShift. Application shutdown clears remaining in-memory sessions.

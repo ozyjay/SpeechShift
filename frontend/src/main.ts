@@ -92,8 +92,8 @@ root.innerHTML = `
       <div class="journey-heading"><div><p class="eyebrow">What is happening</p><h2>The speech journey</h2></div><div id="latency" class="latency">Ready for a prepared run</div></div>
       <div class="stage-track">
         <article class="stage" data-stage="spoken"><span class="stage-number">1</span><div class="wave mini-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><h3>Spoken audio</h3><p>Prepared source clip</p></article>
-        <span class="arrow">→</span>
-        <article class="stage" data-stage="recognised"><span class="stage-number">2</span><div class="stage-icon">Aa</div><h3>Recognised words</h3><p id="transcript">Waiting…</p></article>
+        <span class="arrow recognition-stage">→</span>
+        <article class="stage recognition-stage" data-stage="recognised"><span class="stage-number">2</span><div class="stage-icon">Aa</div><h3>Recognised words</h3><p id="transcript">Waiting…</p></article>
         <span class="arrow language-stage">→</span>
         <article class="stage language-stage" data-stage="translated"><span class="stage-number">3</span><div class="stage-icon">文</div><h3>Translated meaning</h3><p id="translation">Waiting…</p></article>
         <span class="arrow">→</span>
@@ -166,33 +166,54 @@ function updateMicrophoneState(message: string, state: "inactive" | "ready" | "r
 
 function updateStartAvailability(): void {
   const isMock = config?.provider === "mock-modeldeck";
-  startButton.disabled = isMock && !capturedAudio;
+  const isLocal = config?.provider === "local";
+  startButton.disabled = (isMock || isLocal) && !capturedAudio;
   const title = startButton.querySelector("b");
   const detail = startButton.querySelector("small");
-  if (title) title.textContent = isMock ? "Run mock pipeline" : "Play the transformation";
-  if (detail) detail.textContent = isMock
-    ? (capturedAudio ? "Streams your captured PCM to a deterministic mock" : "Record a local sample first")
-    : "About 3 seconds";
+  if (title) title.textContent = isLocal
+    ? "Apply local voice shift"
+    : (isMock ? "Run mock pipeline" : "Play the transformation");
+  if (detail) {
+    detail.textContent = isLocal
+      ? (capturedAudio ? "Real offline signal processing" : "Record a local sample first")
+      : (isMock
+          ? (capturedAudio ? "Streams your captured PCM to a deterministic mock" : "Record a local sample first")
+          : "About 3 seconds");
+  }
 }
 
 function updateProviderPresentation(): void {
   const isMock = config.provider === "mock-modeldeck";
+  const isLocal = config.provider === "local";
+  document.body.classList.toggle("local-dsp-mode", isLocal);
+  const languageTab = document.querySelector<HTMLButtonElement>('.mode-tab[data-mode="language"]');
+  if (languageTab) languageTab.disabled = isLocal;
+  if (isLocal && mode !== "voice") setMode("voice");
   element("#providerLabel").textContent = config.provider_label;
-  element("#privacyHeading").textContent = isMock
-    ? "Development mock contract is selected."
-    : "The transformation remains a prepared replay.";
-  element("#privacyDetail").textContent = isMock
-    ? "Captured PCM crosses only to the local SpeechShift backend; text and output audio are deterministic fixtures."
-    : "The optional microphone check stays in browser memory and is cleared on reset.";
-  element("#microphoneExplanation").innerHTML = isMock
-    ? `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds. The local backend validates this PCM stream, but mock text and output are fixtures.`
-    : `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds, then hear your original voice. It is not uploaded or used by the prepared transformation.`;
-  element("#accuracyNote").textContent = isMock
-    ? "Mock contract mode validates transport and interface behaviour only. Transcript, translation, timing and output audio are deterministic fixtures—not AI results."
-    : "AI-produced voices and translations are approximations and may contain errors. Replay timings illustrate the intended experience; they are not live-model measurements.";
-  element("#providerNote").textContent = isMock
-    ? "Mock contract is selected. It sends bounded audio to the local backend and uses deterministic fixtures. Switch back to Replay for the public story."
-    : "Replay is selected. The deterministic mock contract is available only for supervised development testing.";
+  element("#privacyHeading").textContent = isLocal
+    ? "Local DSP voice shift is selected."
+    : (isMock ? "Development mock contract is selected." : "The transformation remains a prepared replay.");
+  element("#privacyDetail").textContent = isLocal
+    ? "Captured PCM is processed in memory by SpeechShift and cleared on reset. This is signal processing, not AI."
+    : (isMock
+        ? "Captured PCM crosses only to the local SpeechShift backend; text and output audio are deterministic fixtures."
+        : "The optional microphone check stays in browser memory and is cleared on reset.");
+  element("#microphoneExplanation").innerHTML = isLocal
+    ? `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds. Local DSP applies the selected voice effect without recognising or storing your words.`
+    : (isMock
+        ? `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds. The local backend validates this PCM stream, but mock text and output are fixtures.`
+        : `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds, then hear your original voice. It is not uploaded or used by the prepared transformation.`);
+  element("#accuracyNote").textContent = isLocal
+    ? "Local DSP changes the sound directly and does not recognise words, translate speech or use an AI model. Results vary with microphone quality and speaking volume."
+    : (isMock
+        ? "Mock contract mode validates transport and interface behaviour only. Transcript, translation, timing and output audio are deterministic fixtures—not AI results."
+        : "AI-produced voices and translations are approximations and may contain errors. Replay timings illustrate the intended experience; they are not live-model measurements.");
+  element("#providerNote").textContent = isLocal
+    ? "Local DSP is selected for real Voice Shift input. It is a development baseline, not a speech model, and Language Shift is unavailable."
+    : (isMock
+        ? "Mock contract is selected. It sends bounded audio to the local backend and uses deterministic fixtures. Switch back to Replay for the public story."
+        : "Replay is selected. Local DSP and the deterministic mock contract are available for supervised development testing.");
+  element("#generatedNumber").textContent = isLocal ? "2" : (mode === "voice" ? "3" : "4");
   updateStartAvailability();
 }
 
@@ -370,7 +391,9 @@ function resetJourney(): void {
 }
 
 function setStage(stageName: string): void {
-  const stages = mode === "voice" ? ["spoken", "recognised", "generated"] : ["spoken", "recognised", "translated", "generated"];
+  const stages = config.provider === "local"
+    ? ["spoken", "generated"]
+    : (mode === "voice" ? ["spoken", "recognised", "generated"] : ["spoken", "recognised", "translated", "generated"]);
   const activeIndex = stages.indexOf(stageName);
   stages.forEach((stage, index) => {
     const card = document.querySelector<HTMLElement>(`.stage[data-stage="${stage}"]`);
@@ -420,6 +443,7 @@ function handleEvent(event: StreamEvent): void {
       event.first_audio_latency_ms,
       Boolean(event.replay_timing),
       Boolean(event.mock_timing),
+      Boolean(event.dsp_processing),
     );
   }
   if (event.type === "complete") {
@@ -478,11 +502,13 @@ async function startRun(): Promise<void> {
   startButton.disabled = true;
   cancelButton.disabled = false;
   element("#journey").scrollIntoView({ behavior: "smooth", block: "start" });
-  if (config.provider === "mock-modeldeck") {
+  if (config.provider === "mock-modeldeck" || config.provider === "local") {
     if (!capturedAudio) throw new Error("Record a local sample before running the mock contract.");
-    element("#latency").textContent = "Sending bounded PCM to deterministic mock…";
+    element("#latency").textContent = config.provider === "local"
+      ? "Applying local DSP in memory…"
+      : "Sending bounded PCM to deterministic mock…";
     socket?.send(JSON.stringify({
-      command: "start_mock",
+      command: config.provider === "local" ? "start_local" : "start_mock",
       request: {
         mode,
         sentence_id: selectedSentence,

@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from speechshift.config import Settings, SpeechProvider, get_settings
+from speechshift.local_dsp import PROFILE_LABELS, LocalDspProvider
 from speechshift.mock_provider import MockSpeechProvider
 from speechshift.models import (
     MockRunRequest,
@@ -34,6 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     catalogue = ReplayCatalogue(settings.replay_asset_dir)
     replay_provider = ReplayProvider(catalogue)
     mock_provider = MockSpeechProvider(catalogue)
+    local_dsp_provider = LocalDspProvider()
     provider_registry = ProviderRegistry(settings.speech_provider, settings.demo_mode)
     sessions = SessionStore()
 
@@ -62,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "replay_ready": True,
             "live_provider_ready": False,
             "mock_provider_ready": settings.demo_mode.value == "development",
+            "local_dsp_ready": settings.demo_mode.value == "development",
             "storage": "memory-only",
         }
 
@@ -109,8 +112,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return
         await websocket.accept()
         active_task: asyncio.Task[None] | None = None
-        mock_request: MockRunRequest | None = None
-        mock_buffer: SequencedPcmBuffer | None = None
+        stream_request: MockRunRequest | None = None
+        stream_buffer: SequencedPcmBuffer | None = None
+        stream_provider: SpeechProvider | None = None
 
         async def send(event: dict[str, Any]) -> None:
             await websocket.send_json(event)
@@ -122,15 +126,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     raise WebSocketDisconnect(packet.get("code", 1000))
                 binary = packet.get("bytes")
                 if binary is not None:
-                    if mock_buffer is None:
+                    if stream_buffer is None:
                         await send({"type": "error", "code": "unexpected_audio_frame", "recoverable": True})
                         continue
                     try:
-                        mock_buffer.append(binary)
+                        stream_buffer.append(binary)
                     except AudioStreamError as error:
-                        mock_buffer.clear()
-                        mock_buffer = None
-                        mock_request = None
+                        stream_buffer.clear()
+                        stream_buffer = None
+                        stream_request = None
+                        stream_provider = None
                         await send({"type": "error", "code": error.code, "recoverable": True})
                     continue
                 try:
@@ -177,14 +182,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         continue
                     session.cancelled = asyncio.Event()
                     session.sequence = 0
-                    mock_request = request
+                    stream_request = request
                     maximum_bytes = (
                         settings.audio_sample_rate
                         * settings.audio_channels
                         * 2
                         * settings.max_input_seconds
                     )
-                    mock_buffer = SequencedPcmBuffer(maximum_bytes)
+                    stream_buffer = SequencedPcmBuffer(maximum_bytes)
+                    stream_provider = SpeechProvider.MOCK_MODELDECK
                     await send(
                         {
                             "type": "state",
@@ -195,37 +201,99 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                             "mock": True,
                         }
                     )
+                elif command == "start_local":
+                    if provider_registry.selected is not SpeechProvider.LOCAL:
+                        await send({"type": "error", "code": "provider_mismatch", "recoverable": True})
+                        continue
+                    if active_task and not active_task.done():
+                        await send({"type": "error", "code": "already_running", "recoverable": True})
+                        continue
+                    try:
+                        request = MockRunRequest.model_validate(message.get("request"))
+                    except ValueError:
+                        await send({"type": "error", "code": "invalid_local_request", "recoverable": True})
+                        continue
+                    if request.mode.value != "voice":
+                        await send({"type": "error", "code": "unsupported_mode", "recoverable": True})
+                        continue
+                    if request.selection_id not in PROFILE_LABELS:
+                        await send({"type": "error", "code": "invalid_profile", "recoverable": True})
+                        continue
+                    if (
+                        request.audio_format.encoding != "pcm_s16le"
+                        or request.audio_format.sample_rate_hz != settings.audio_sample_rate
+                        or request.audio_format.channels != settings.audio_channels
+                    ):
+                        await send({"type": "error", "code": "unsupported_audio_format", "recoverable": True})
+                        continue
+                    session.cancelled = asyncio.Event()
+                    session.sequence = 0
+                    stream_request = request
+                    maximum_bytes = (
+                        settings.audio_sample_rate
+                        * settings.audio_channels
+                        * 2
+                        * settings.max_input_seconds
+                    )
+                    stream_buffer = SequencedPcmBuffer(maximum_bytes)
+                    stream_provider = SpeechProvider.LOCAL
+                    await send(
+                        {
+                            "type": "state",
+                            "state": "receiving_audio",
+                            "stage": "spoken",
+                            "session_id": session.id,
+                            "generation": session.generation,
+                            "dsp": True,
+                        }
+                    )
                 elif command == "end_audio":
-                    if mock_request is None or mock_buffer is None:
+                    if stream_request is None or stream_buffer is None or stream_provider is None:
                         await send({"type": "error", "code": "audio_stream_not_started", "recoverable": True})
                         continue
-                    if mock_buffer.length < settings.audio_sample_rate * 2 // 10:
-                        mock_buffer.clear()
-                        mock_buffer = None
-                        mock_request = None
+                    if stream_buffer.length < settings.audio_sample_rate * 2 // 10:
+                        stream_buffer.clear()
+                        stream_buffer = None
+                        stream_request = None
+                        stream_provider = None
                         await send({"type": "error", "code": "audio_too_short", "recoverable": True})
                         continue
-                    input_frames = mock_buffer.frame_count
-                    input_pcm = mock_buffer.consume()
-                    request = mock_request
-                    mock_buffer = None
-                    mock_request = None
-                    active_task = asyncio.create_task(
-                        mock_provider.run(
-                            session,
-                            request,
-                            input_pcm,
-                            input_frames,
-                            send,
-                            websocket.send_bytes,
+                    input_frames = stream_buffer.frame_count
+                    input_pcm = stream_buffer.consume()
+                    request = stream_request
+                    selected_stream_provider = stream_provider
+                    stream_buffer = None
+                    stream_request = None
+                    stream_provider = None
+                    if selected_stream_provider is SpeechProvider.LOCAL:
+                        active_task = asyncio.create_task(
+                            local_dsp_provider.run(
+                                session,
+                                request,
+                                input_pcm,
+                                input_frames,
+                                send,
+                                websocket.send_bytes,
+                            )
                         )
-                    )
+                    else:
+                        active_task = asyncio.create_task(
+                            mock_provider.run(
+                                session,
+                                request,
+                                input_pcm,
+                                input_frames,
+                                send,
+                                websocket.send_bytes,
+                            )
+                        )
                 elif command == "cancel":
                     session.cancelled.set()
-                    if mock_buffer is not None:
-                        mock_buffer.clear()
-                    mock_buffer = None
-                    mock_request = None
+                    if stream_buffer is not None:
+                        stream_buffer.clear()
+                    stream_buffer = None
+                    stream_request = None
+                    stream_provider = None
                     if active_task:
                         active_task.cancel()
                     await send(

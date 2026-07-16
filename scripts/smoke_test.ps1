@@ -17,4 +17,4 @@ if ($Worklet.StatusCode -ne 200 -or $Worklet.Content -notmatch "speechshift-capt
     throw "SpeechShift audio capture worklet is unavailable."
 }
 & .venv/bin/python scripts/smoke_mock.py
-Write-Host "SpeechShift smoke test passed: replay ready, audio bounded, and mock binary streaming complete."
+Write-Host "SpeechShift smoke test passed: replay ready, audio bounded, mock streaming complete, and Local DSP changed real PCM."

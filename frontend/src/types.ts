@@ -63,8 +63,10 @@ export interface StreamEvent {
   replay_timing?: boolean;
   code?: string;
   mock?: boolean;
+  dsp?: boolean;
   fixture?: boolean;
   mock_timing?: boolean;
+  dsp_processing?: boolean;
   audio_format?: {
     encoding: string;
     sample_rate_hz: number;

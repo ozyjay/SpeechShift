@@ -13,5 +13,6 @@ describe("stream state", () => {
     expect(formatLatency(1540, true)).toBe("1.5 s prepared timing");
     expect(formatLatency(1540, false)).toBe("1.5 s measured");
     expect(formatLatency(1540, false, true)).toBe("1.5 s mock timing");
+    expect(formatLatency(42, false, false, true)).toBe("42 ms local DSP");
   });
 });

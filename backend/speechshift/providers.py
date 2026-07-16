@@ -21,12 +21,13 @@ class ProviderRegistry:
         return {
             SpeechProvider.REPLAY: "Replay mode",
             SpeechProvider.MOCK_MODELDECK: "Mock contract",
-            SpeechProvider.LOCAL: "Local provider",
+            SpeechProvider.LOCAL: "Local DSP",
             SpeechProvider.MODELDECK: "ModelDeck",
         }[self._selected]
 
     def statuses(self) -> list[dict[str, str]]:
         mock_state = "ready" if self._demo_mode is DemoMode.DEVELOPMENT else "development-only"
+        local_state = "ready" if self._demo_mode is DemoMode.DEVELOPMENT else "development-only"
         return [
             {"id": "replay", "label": "Replay", "state": "ready", "detail": "Prepared offline examples"},
             {
@@ -35,7 +36,12 @@ class ProviderRegistry:
                 "state": mock_state,
                 "detail": "Deterministic binary-stream integration; no AI model",
             },
-            {"id": "local", "label": "Local", "state": "not-configured", "detail": "Model spike pending"},
+            {
+                "id": "local",
+                "label": "Local DSP",
+                "state": local_state,
+                "detail": "Real offline voice effects; signal processing, not AI",
+            },
             {
                 "id": "modeldeck",
                 "label": "ModelDeck",
@@ -51,8 +57,9 @@ class ProviderRegistry:
             raise ProviderSelectionError("unknown provider") from error
         if provider is SpeechProvider.MOCK_MODELDECK and self._demo_mode is not DemoMode.DEVELOPMENT:
             raise ProviderSelectionError("mock provider is development-only")
-        if provider in {SpeechProvider.LOCAL, SpeechProvider.MODELDECK}:
+        if provider is SpeechProvider.LOCAL and self._demo_mode is not DemoMode.DEVELOPMENT:
+            raise ProviderSelectionError("local DSP provider is development-only")
+        if provider is SpeechProvider.MODELDECK:
             raise ProviderSelectionError("provider is not ready")
         self._selected = provider
         return provider
-

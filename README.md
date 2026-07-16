@@ -22,10 +22,12 @@ SpeechShift is an honest replay-first MVP with a separate local microphone found
 - Staff-selectable deterministic mock contract in development mode.
 - Sequenced, bounded binary PCM input and output over the session WebSocket.
 - Partial/final transcript events, translation events, streamed output audio, cancellation and structured errors.
+- Real offline Local DSP Voice Shift for captured visitor audio.
+- Calm, energetic and clearly artificial robot DSP profiles with limiting and click-reducing fades.
 - Unified visitor screen and staff diagnostics panel.
 - Strict privacy and ModelDeck gateway configuration checks.
 
-The microphone remains inactive until the visitor selects **Enable microphone** and then holds **Hold to record**. Releasing the button stops capture. In Replay mode, the recording never leaves the browser. Staff may explicitly select **Mock contract** in development mode; this sends bounded PCM to the local SpeechShift backend and exercises the proposed streaming contract. Its text, timing and output audio are deterministic fixtures, not AI results. The `local` and real `modeldeck` providers remain unavailable until their model implementation and readiness gates pass.
+The microphone remains inactive until the visitor selects **Enable microphone** and then holds **Hold to record**. Releasing the button stops capture. In Replay mode, the recording never leaves the browser. Staff may explicitly select **Local DSP** in development mode to transform the real captured voice with offline signal processing. This baseline does not recognise words, translate speech or use an AI model. **Mock contract** remains available for deterministic integration testing. The real `modeldeck` provider remains unavailable until a speech capability passes its readiness gates.
 
 ## Quick start
 
@@ -60,7 +62,7 @@ Browser visitor/staff UI :3800 proposal
         ↕ HTTP + WebSocket
 FastAPI orchestration and in-memory session state
         ↓ explicit provider
-Replay assets (current) | local (future) | ModelDeck gateway :8600 (future)
+Replay assets | Local DSP baseline | mock contract | ModelDeck gateway :8600 (future)
 ```
 
 SpeechShift never calls ModelDeck management or worker ports. See [Architecture](docs/ARCHITECTURE.md), [privacy and safety](docs/PRIVACY_AND_SAFETY.md), and the [demo runbook](docs/DEMO_RUNBOOK.md).

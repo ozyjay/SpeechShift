@@ -23,12 +23,22 @@ The interface is intentionally explicit:
 
 - `replay`: implemented and ready without a live model;
 - `mock-modeldeck`: development-only contract simulator with no model;
-- `local`: reserved for repository-local model experiments, currently unavailable;
+- `local`: implemented in development as a real SpeechShift-owned DSP baseline; it is not an AI model;
 - `modeldeck`: reserved for the stable ModelDeck gateway, currently unavailable.
 
 There is no automatic provider switching. Future fallback requires a visible staff action. A live provider failure must not mutate the configured provider.
 
-Staff can explicitly switch between Replay and Mock contract without restarting the UI. Mock is rejected outside development mode. Local and real ModelDeck selections return a structured not-ready response.
+Staff can explicitly switch among Replay, Local DSP and Mock contract without restarting the UI. Local DSP and Mock are rejected outside development mode. Real ModelDeck selection returns a structured not-ready response.
+
+## Local DSP baseline
+
+Local DSP reuses only the narrow, proven algorithmic ideas inspected in VoiceChanger; SpeechShift has its own standard-library implementation and no VoiceChanger runtime dependency. It accepts the same bounded sequenced PCM stream as the mock contract and returns the visitor's actually processed audio:
+
+- Calm DSP slightly lowers pitch, slows delivery and smooths high-frequency variation.
+- Energetic DSP slightly raises pitch, speeds delivery and applies bounded drive.
+- Artificial robot DSP applies 30 Hz ring modulation.
+
+Every profile applies an 82% sample ceiling and short start/end fades. Local DSP does not recognise or regenerate words and cannot provide Language Shift. The visitor UI hides recognition stages and explicitly describes this as signal processing rather than AI.
 
 ## Session lifecycle
 
@@ -46,7 +56,7 @@ Microphone capture is intentionally independent of the replay provider:
 6. A completed recording is resampled to mono 16 kHz PCM and encoded as an in-memory WAV for local playback.
 7. Clear, reset or page exit revokes the object URL and discards the samples.
 
-Replay mode keeps every microphone frame and WAV in the browser. Mock contract mode adds an explicit transport step: mono 16 kHz PCM16 is divided into sequenced binary frames, sent with backpressure over the session WebSocket and accumulated in a backend buffer capped at eight seconds. Mock output uses the same sequenced binary framing in reverse. The browser rebuilds a memory-only WAV and revokes it on reset.
+Replay mode keeps every microphone frame and WAV in the browser. Local DSP and Mock contract add an explicit transport step: mono 16 kHz PCM16 is divided into sequenced binary frames, sent with backpressure over the session WebSocket and accumulated in a backend buffer capped at eight seconds. Both output paths use the same sequenced binary framing in reverse. The browser rebuilds a memory-only WAV and revokes it on reset.
 
 The mock emits deterministic partial/final text and prepared audio fixtures. Every event carries `mock: true`; fixture text and mock timing are additionally labelled. It validates integration behaviour but provides no evidence that a speech model works.
 

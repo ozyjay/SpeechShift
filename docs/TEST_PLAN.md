@@ -23,6 +23,7 @@
 - Local DSP profile validation, duration changes, amplitude ceiling, fades and real transformed binary output;
 - Local DSP request and interface contain no replay sentence semantics;
 - TypeScript type-check, production build, Python lint and tests.
+- headless system-Chromium smoke across every replay combination, provider-specific source semantics, audio loading and visitor reset.
 
 ## Operational now
 

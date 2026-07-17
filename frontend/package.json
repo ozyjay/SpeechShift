@@ -10,12 +10,13 @@
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
     "dev": "vite --host 127.0.0.1 --port 5173",
-    "test": "vitest run --reporter=default"
+    "test": "vitest run --reporter=default",
+    "test:browser": "node browser-smoke.mjs"
   },
   "devDependencies": {
+    "playwright-core": "1.61.1",
     "typescript": "7.0.2",
     "vite": "8.1.4",
     "vitest": "4.1.10"
   }
 }
-

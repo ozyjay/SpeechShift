@@ -9,5 +9,6 @@ Push-Location frontend
 npm run check
 npm test
 npm run build
+npm run test:browser
 Pop-Location
 Write-Host "SpeechShift verification passed."

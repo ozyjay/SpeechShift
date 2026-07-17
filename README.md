@@ -32,7 +32,7 @@ The microphone remains inactive until the visitor selects **Enable microphone** 
 
 ## Quick start
 
-Requires Python 3.12+, Node.js 22+ and PowerShell 7 on Fedora 44.
+Requires Python 3.12+, Node.js 22+, PowerShell 7 and system Chromium on Fedora 44. Set `SPEECHSHIFT_CHROMIUM` when Chromium is installed under a non-standard executable name or path.
 
 ```powershell
 cp .env.example .env

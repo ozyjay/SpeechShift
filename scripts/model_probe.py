@@ -5,6 +5,7 @@ from pathlib import Path
 
 from speechshift.model_readiness import (
     CandidateManifest,
+    candidate_licence_failures,
     load_probe_record,
     prepare_probe_record,
     readiness_failures,
@@ -12,14 +13,32 @@ from speechshift.model_readiness import (
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Prepare or evaluate a SpeechShift model-readiness record.")
+    parser = argparse.ArgumentParser(
+        description="Audit a candidate or prepare and evaluate a SpeechShift model-readiness record."
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
     prepare = subparsers.add_parser("prepare", help="Capture the local fingerprint for a candidate.")
     prepare.add_argument("candidate", type=Path)
     prepare.add_argument("output", type=Path)
     evaluate = subparsers.add_parser("evaluate", help="Check whether a completed record passes every gate.")
     evaluate.add_argument("record", type=Path)
+    audit = subparsers.add_parser(
+        "audit",
+        help="Fail unless the candidate code and every declared artefact have reviewed licences.",
+    )
+    audit.add_argument("candidate", type=Path)
     args = parser.parse_args()
+
+    if args.command == "audit":
+        candidate = CandidateManifest.model_validate_json(args.candidate.read_text(encoding="utf-8"))
+        failures = candidate_licence_failures(candidate)
+        if failures:
+            print("Candidate downloads are blocked:")
+            for failure in failures:
+                print(f"- {failure}")
+            return 1
+        print("Candidate code and declared artefact licences are reviewed.")
+        return 0
 
     if args.command == "prepare":
         candidate = CandidateManifest.model_validate_json(args.candidate.read_text(encoding="utf-8"))

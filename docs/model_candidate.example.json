@@ -13,5 +13,15 @@
   ],
   "framework": "record-framework-and-version",
   "cuda_or_triton_requirements": "record assumptions; do not infer ROCm support",
-  "maintenance_status": "record latest upstream release or activity date"
+  "maintenance_status": "record latest upstream release or activity date",
+  "artifacts": [
+    {
+      "name": "replace-with-checkpoint-name",
+      "source": "https://example.invalid/checkpoint",
+      "licence": "record-the-checkpoint-licence-separately",
+      "licence_source": "https://example.invalid/model-card-or-licence",
+      "licence_reviewed": false,
+      "expected_sha256": null
+    }
+  ]
 }

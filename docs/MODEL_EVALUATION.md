@@ -29,3 +29,17 @@ The first Framework Desktop probe used the pinned candidate in `docs/model_candi
 Fedora's installed HSA runtime must currently be preloaded for this path. PyTorch 2.10.0's bundled HSA runtime enumerates the GPU but segfaults on the first tensor operation; the Fedora ROCm 7.1.1 runtime completes the same operation. This is an explicit development-only compatibility requirement, not a silent fallback or an architecture override.
 
 This candidate is **not ready for promotion**. The upstream interface is batch-oriented, the streaming and request-level cancellation gates have not passed, the generic Triton dependency alongside `triton-rocm` needs resolution, and public-output safety review needs a broader corpus. No `local` or `modeldeck` capability is enabled by this probe.
+
+## VoicePrivacy 2026 B3 licence gate
+
+The next direct voice-transformation candidate is pinned in `docs/model_candidates/voiceprivacy-2026-b3-sttts-rocm.json`. VoicePrivacy B3 is relevant because it reconstructs the source phonetic content with modified prosody and a GAN-generated artificial speaker embedding; it does not require a target recording or represent the output as a known person.
+
+The physical model probe is **blocked before download**. VoicePrivacy 2026 and the DigitalPhonetics speaker-anonymization source repositories declare GPL-3.0, but the B3 v2.0 release page does not state a licence for `anonymization.zip`, `asr.zip` or `tts.zip` and provides no model card covering those checkpoint archives. Repository licensing must not be assumed to grant public-demonstration rights for separately distributed model weights.
+
+Run the machine-readable gate with:
+
+```powershell
+.venv/bin/python scripts/model_probe.py audit docs/model_candidates/voiceprivacy-2026-b3-sttts-rocm.json
+```
+
+Until every archive has an explicit reviewed licence, SpeechShift will not download the checkpoints, construct the isolated model environment, or claim ROCm compatibility. The in-memory probe harness and synthetic twelve-clip eSpeak corpus are implemented and unit tested so physical work can resume without changing the privacy boundary if the rights are clarified. No provider or interface behaviour changes as a result of this blocked candidate.

@@ -1,0 +1,40 @@
+{
+  "candidate_id": "voiceprivacy-2026-b3-sttts-rocm",
+  "capability": "speech.voice_transform",
+  "repository": "https://github.com/Voice-Privacy-Challenge/Voice-Privacy-Challenge-2026",
+  "revision": "e6810a4764d12a25ca7e82124da86b707d52e5d5",
+  "model_id": "VoicePrivacy 2026 Track 1 B3 STTTS using DigitalPhonetics speaker-anonymization v2.0 checkpoints",
+  "licence": "VoicePrivacy 2026 and DigitalPhonetics speaker-anonymization code are GPL-3.0. The v2.0 checkpoint archives do not carry an explicit checkpoint licence or model card, so public-demonstration rights remain unresolved.",
+  "licence_reviewed": false,
+  "parameters": "Aggregate parameter count is not published for the Branchformer ASR, embedding GAN, FastSpeech2 and HiFiGAN pipeline.",
+  "precision": "Not probed. Upstream config targets PyTorch 2.8.0 with CUDA 12.8; the proposed probe would use an isolated ROCm build.",
+  "languages": [
+    "English"
+  ],
+  "framework": "VoicePrivacy 2026 B3 STTTS; ESPnet phonetic ASR; IMS FastSpeech2 and HiFiGAN; Python 3.11",
+  "cuda_or_triton_requirements": "The upstream installer provisions CUDA 12.8 and PyTorch 2.8.0. ROCm is not claimed upstream and must be physically probed without an HSA architecture override or silent CPU fallback. The upstream file-oriented dataset pipeline must not be used for visitor audio.",
+  "maintenance_status": "Current VoicePrivacy 2026 challenge baseline pinned at the repository revision recorded above.",
+  "artifacts": [
+    {
+      "name": "anonymization.zip",
+      "source": "https://github.com/DigitalPhonetics/speaker-anonymization/releases/download/v2.0/anonymization.zip",
+      "licence": "No explicit checkpoint licence found on the v2.0 release or in a model card.",
+      "licence_source": "https://github.com/DigitalPhonetics/speaker-anonymization/releases/tag/v2.0",
+      "licence_reviewed": false
+    },
+    {
+      "name": "asr.zip",
+      "source": "https://github.com/DigitalPhonetics/speaker-anonymization/releases/download/v2.0/asr.zip",
+      "licence": "No explicit checkpoint licence found on the v2.0 release or in a model card.",
+      "licence_source": "https://github.com/DigitalPhonetics/speaker-anonymization/releases/tag/v2.0",
+      "licence_reviewed": false
+    },
+    {
+      "name": "tts.zip",
+      "source": "https://github.com/DigitalPhonetics/speaker-anonymization/releases/download/v2.0/tts.zip",
+      "licence": "No explicit checkpoint licence found on the v2.0 release or in a model card.",
+      "licence_source": "https://github.com/DigitalPhonetics/speaker-anonymization/releases/tag/v2.0",
+      "licence_reviewed": false
+    }
+  ]
+}

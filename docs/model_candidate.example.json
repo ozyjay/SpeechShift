@@ -1,0 +1,17 @@
+{
+  "candidate_id": "replace-with-candidate-id",
+  "capability": "speech.voice_transform",
+  "repository": "https://example.invalid/upstream-repository",
+  "revision": "pin-an-exact-revision",
+  "model_id": "replace-with-model-identifier",
+  "licence": "record-the-code-and-model-licences",
+  "licence_reviewed": false,
+  "parameters": "record-parameter-count",
+  "precision": "record-tested-precision",
+  "languages": [
+    "English"
+  ],
+  "framework": "record-framework-and-version",
+  "cuda_or_triton_requirements": "record assumptions; do not infer ROCm support",
+  "maintenance_status": "record latest upstream release or activity date"
+}

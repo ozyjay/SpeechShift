@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from speechshift.audio_activity import analyse_pcm16_activity
 from speechshift.config import Settings, SpeechProvider, get_settings
 from speechshift.local_dsp import PROFILE_LABELS, LocalDspProvider
 from speechshift.mock_provider import MockSpeechProvider
@@ -265,6 +266,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     stream_buffer = None
                     stream_request = None
                     stream_provider = None
+                    activity = analyse_pcm16_activity(
+                        input_pcm,
+                        sample_rate=request.audio_format.sample_rate_hz,
+                    )
+                    if not activity.has_speech:
+                        await send({"type": "error", "code": "audio_silent", "recoverable": True})
+                        continue
                     if selected_stream_provider is SpeechProvider.LOCAL:
                         active_task = asyncio.create_task(
                             local_dsp_provider.run(

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { acceptsEvent, formatLatency } from "./state";
+import { acceptsEvent, formatLatency, pipelineErrorMessage } from "./state";
 
 describe("stream state", () => {
   it("rejects stale generations and repeated sequences", () => {
@@ -14,5 +14,11 @@ describe("stream state", () => {
     expect(formatLatency(1540, false)).toBe("1.5 s measured");
     expect(formatLatency(1540, false, true)).toBe("1.5 s mock timing");
     expect(formatLatency(42, false, false, true)).toBe("42 ms local DSP");
+  });
+
+  it("turns input gate failures into visitor-safe guidance", () => {
+    expect(pipelineErrorMessage("audio_silent")).toContain("No clear speech was detected");
+    expect(pipelineErrorMessage("audio_too_short")).toContain("too short");
+    expect(pipelineErrorMessage("unexpected")).toBe("Pipeline error: unexpected");
   });
 });

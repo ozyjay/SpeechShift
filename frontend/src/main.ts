@@ -9,7 +9,7 @@ import {
   SequencedPcmOutput,
   sequencedPcm16Frames,
 } from "./audio";
-import { acceptsEvent, formatLatency } from "./state";
+import { acceptsEvent, formatLatency, pipelineErrorMessage } from "./state";
 import type { Catalogue, PublicConfig, Sentence, ShiftMode, StreamEvent } from "./types";
 
 const root = document.querySelector<HTMLDivElement>("#app");
@@ -457,7 +457,7 @@ function handleEvent(event: StreamEvent): void {
     element("#sessionState").textContent = "Cancelled";
   }
   if (event.type === "error") {
-    element("#latency").textContent = `Pipeline error: ${event.code ?? "unknown"}`;
+    element("#latency").textContent = pipelineErrorMessage(event.code);
     cancelButton.disabled = true;
     updateStartAvailability();
   }

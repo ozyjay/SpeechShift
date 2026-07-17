@@ -19,3 +19,9 @@ export function formatLatency(
   if (mockTiming) return `${seconds} s mock timing`;
   return replayTiming ? `${seconds} s prepared timing` : `${seconds} s measured`;
 }
+
+export function pipelineErrorMessage(code?: string): string {
+  if (code === "audio_silent") return "No clear speech was detected. Please record again and speak a little louder.";
+  if (code === "audio_too_short") return "The recording was too short. Please hold the button longer.";
+  return `Pipeline error: ${code ?? "unknown"}`;
+}

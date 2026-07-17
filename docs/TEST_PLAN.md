@@ -16,6 +16,7 @@
 - mono 16-bit PCM WAV encoding;
 - sequenced PCM input/output framing and ordering rejection;
 - backend byte-buffer limits and short-audio rejection;
+- shared PCM silence rejection before mock or Local DSP processing;
 - explicit development provider selection and unavailable live-provider rejection;
 - deterministic mock partial/final events, binary fixture output and metrics;
 - Local DSP profile validation, duration changes, amplitude ceiling, fades and real transformed binary output;
@@ -32,4 +33,4 @@
 
 ## Required for later live milestones
 
-Test silence detection, explicit output-device selection, gateway restart/disconnect, binary frame order and backpressure, cancellation latency, model memory release, 50-session live reset, 60-minute live burn-in and whole-stack GPU/port coexistence.
+Test explicit output-device selection, gateway restart/disconnect, binary frame order and backpressure, cancellation latency, model memory release, 50-session live reset, 60-minute live burn-in and whole-stack GPU/port coexistence.

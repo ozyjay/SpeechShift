@@ -3,9 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   BoundedSampleBuffer,
   encodeMonoWav,
+  listAudioOutputs,
   resampleLinear,
+  resolveAudioOutputDeviceId,
+  setAudioOutput,
   SequencedPcmOutput,
   sequencedPcm16Frames,
+  supportsAudioOutputSelection,
 } from "./audio";
 
 describe("bounded audio buffering", () => {
@@ -23,6 +27,41 @@ describe("bounded audio buffering", () => {
       expect.closeTo(0.5),
     ]);
     expect(buffer.length).toBe(0);
+  });
+});
+
+describe("audio output routing", () => {
+  it("reports support only when the media target can select a sink", () => {
+    expect(supportsAudioOutputSelection({ setSinkId: async () => undefined })).toBe(true);
+    expect(supportsAudioOutputSelection({})).toBe(false);
+  });
+
+  it("lists only audio output devices", async () => {
+    const devices = [
+      { kind: "audioinput", deviceId: "microphone" },
+      { kind: "audiooutput", deviceId: "headphones" },
+    ] as MediaDeviceInfo[];
+    await expect(listAudioOutputs(async () => devices)).resolves.toEqual([devices[1]]);
+  });
+
+  it("routes every player to the explicitly selected output", async () => {
+    const selected: string[] = [];
+    await setAudioOutput([
+      { setSinkId: async (deviceId) => { selected.push(`original:${deviceId}`); } },
+      { setSinkId: async (deviceId) => { selected.push(`result:${deviceId}`); } },
+    ], "headphones");
+    expect(selected).toEqual(["original:headphones", "result:headphones"]);
+  });
+
+  it("falls back to the system default when the selected output disappears", () => {
+    const devices = [{ kind: "audiooutput", deviceId: "speakers" }] as MediaDeviceInfo[];
+    expect(resolveAudioOutputDeviceId("speakers", devices)).toBe("speakers");
+    expect(resolveAudioOutputDeviceId("headphones", devices)).toBe("");
+    expect(resolveAudioOutputDeviceId("", devices)).toBe("");
+  });
+
+  it("fails rather than silently ignoring an unsupported player", async () => {
+    await expect(setAudioOutput([{}], "headphones")).rejects.toThrow("does not support");
   });
 });
 

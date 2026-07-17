@@ -16,6 +16,7 @@ SpeechShift is an honest replay-first MVP with a separate local microphone found
 - One-click reset that stops playback and clears the in-memory session.
 - Immediate output mute and a safe volume ceiling.
 - Explicit microphone permission and input-device selection.
+- Operator-selectable playback output with visible browser-support and disconnect diagnostics.
 - Hold-to-record capture with an eight-second hard limit and live input-level meter.
 - Mono 16 kHz PCM conversion and local original-audio playback entirely in browser memory.
 - Microphone unplug handling and recording cleanup on cancel, reset and page exit.

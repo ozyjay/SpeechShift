@@ -2,12 +2,16 @@ import "./styles.css";
 
 import {
   type CapturedAudio,
+  listAudioOutputs,
   listMicrophones,
   microphoneErrorMessage,
   MicrophoneRecorder,
   requestMicrophonePermission,
+  resolveAudioOutputDeviceId,
+  setAudioOutput,
   SequencedPcmOutput,
   sequencedPcm16Frames,
+  supportsAudioOutputSelection,
 } from "./audio";
 import { acceptsEvent, formatLatency, pipelineErrorMessage } from "./state";
 import type { Catalogue, PublicConfig, Sentence, ShiftMode, StreamEvent } from "./types";
@@ -111,7 +115,8 @@ root.innerHTML = `
   <aside id="staffPanel" class="staff-panel" aria-hidden="true">
     <div class="staff-header"><div><p class="eyebrow">Staff only</p><h2>Operator controls</h2></div><button id="closeStaff" class="icon-button" type="button">×</button></div>
     <section><h3>Selected provider</h3><div id="providerList"></div><p id="providerNote" class="operator-note">Replay is ready. The deterministic mock contract is available only for supervised development testing.</p></section>
-    <section><h3>Session diagnostics</h3><dl class="diagnostics"><div><dt>Connection</dt><dd id="connectionState">Idle</dd></div><div><dt>Session</dt><dd id="sessionState">None</dd></div><div><dt>Microphone</dt><dd id="microphoneDiagnostic">Inactive</dd></div><div><dt>Storage</dt><dd>Memory only</dd></div><div><dt>Port status</dt><dd id="portState">Development proposal</dd></div></dl></section>
+    <section><h3>Playback output</h3><label class="operator-field" for="outputSelect">Output device</label><select id="outputSelect" class="operator-select" disabled><option>Checking browser support…</option></select><p id="outputStatus" class="operator-note" role="status">Checking available outputs…</p></section>
+    <section><h3>Session diagnostics</h3><dl class="diagnostics"><div><dt>Connection</dt><dd id="connectionState">Idle</dd></div><div><dt>Session</dt><dd id="sessionState">None</dd></div><div><dt>Microphone</dt><dd id="microphoneDiagnostic">Inactive</dd></div><div><dt>Output</dt><dd id="outputDiagnostic">Checking</dd></div><div><dt>Storage</dt><dd>Memory only</dd></div><div><dt>Port status</dt><dd id="portState">Development proposal</dd></div></dl></section>
     <button id="staffReset" class="danger-button" type="button">Cancel and clear session</button>
   </aside>
   <div id="scrim" class="scrim"></div>
@@ -143,6 +148,7 @@ let recordIntent = false;
 let capturedAudio: CapturedAudio | null = null;
 let streamedOutput: SequencedPcmOutput | null = null;
 let streamedOutputSampleRate = 16_000;
+let selectedOutputDeviceId = "";
 
 const audio = element<HTMLAudioElement>("#audioPlayer");
 const localAudio = element<HTMLAudioElement>("#localAudioPlayer");
@@ -242,11 +248,88 @@ async function enableMicrophone(): Promise<void> {
     await requestMicrophonePermission();
     microphonePermission = true;
     await refreshMicrophones();
+    await refreshAudioOutputs();
     button.textContent = "Permission granted";
     updateMicrophoneState("Ready. The microphone remains off until you hold the record button.", "ready");
   } catch (error) {
     button.disabled = false;
     updateMicrophoneState(microphoneErrorMessage(error), "error");
+  }
+}
+
+function describeOutputDevice(deviceId: string, devices: MediaDeviceInfo[]): string {
+  if (!deviceId) return "System default";
+  return devices.find((device) => device.deviceId === deviceId)?.label || "Selected output";
+}
+
+async function refreshAudioOutputs(): Promise<void> {
+  const select = element<HTMLSelectElement>("#outputSelect");
+  const status = element("#outputStatus");
+  const diagnostic = element("#outputDiagnostic");
+  if (!supportsAudioOutputSelection(audio) || !navigator.mediaDevices?.enumerateDevices) {
+    select.replaceChildren(new Option("Browser output selection unavailable", ""));
+    select.disabled = true;
+    status.textContent = "This browser uses the system default output. Select the booth device in system settings.";
+    diagnostic.textContent = "System default · browser unsupported";
+    return;
+  }
+  try {
+    const devices = await listAudioOutputs();
+    const selectableDevices = devices.filter((device) => device.deviceId !== "default");
+    const options = [new Option("System default", ""), ...selectableDevices.map((device, index) => (
+      new Option(device.label || `Audio output ${index + 1}`, device.deviceId)
+    ))];
+    select.replaceChildren(...options);
+    select.disabled = false;
+    if (selectedOutputDeviceId && !resolveAudioOutputDeviceId(selectedOutputDeviceId, selectableDevices)) {
+      selectedOutputDeviceId = "";
+      select.value = "";
+      try {
+        await setAudioOutput([audio, localAudio], "");
+        status.textContent = "The selected output disconnected. Using the system default; choose another output if needed.";
+        diagnostic.textContent = "Attention · system default";
+      } catch {
+        status.textContent = "The selected output disconnected and playback routing could not be restored. Check system audio settings.";
+        diagnostic.textContent = "Needs attention";
+      }
+      return;
+    }
+    select.value = selectedOutputDeviceId;
+    const label = describeOutputDevice(selectedOutputDeviceId, selectableDevices);
+    status.textContent = selectedOutputDeviceId
+      ? `Original and transformed playback are routed to ${label}.`
+      : "Original and transformed playback use the system default output.";
+    diagnostic.textContent = label;
+  } catch {
+    select.replaceChildren(new Option("Output devices unavailable", ""));
+    select.disabled = true;
+    status.textContent = "Output devices could not be listed. Check browser and system audio settings.";
+    diagnostic.textContent = "Needs attention";
+  }
+}
+
+async function selectAudioOutput(deviceId: string): Promise<void> {
+  const select = element<HTMLSelectElement>("#outputSelect");
+  const status = element("#outputStatus");
+  const diagnostic = element("#outputDiagnostic");
+  const previousDeviceId = selectedOutputDeviceId;
+  select.disabled = true;
+  status.textContent = "Changing playback output…";
+  try {
+    await setAudioOutput([audio, localAudio], deviceId);
+    selectedOutputDeviceId = deviceId;
+    const label = select.selectedOptions[0]?.textContent || "Selected output";
+    status.textContent = deviceId
+      ? `Original and transformed playback are routed to ${label}.`
+      : "Original and transformed playback use the system default output.";
+    diagnostic.textContent = label;
+  } catch {
+    select.value = previousDeviceId;
+    await setAudioOutput([audio, localAudio], previousDeviceId).catch(() => undefined);
+    status.textContent = "That output could not be selected. The previous playback route is still selected.";
+    diagnostic.textContent = "Needs attention";
+  } finally {
+    select.disabled = false;
   }
 }
 
@@ -635,6 +718,7 @@ async function initialise(): Promise<void> {
   renderProviders();
   updateProviderPresentation();
   renderChoices();
+  await refreshAudioOutputs();
 
   document.querySelectorAll<HTMLButtonElement>(".mode-tab").forEach((tab) => tab.addEventListener("click", () => setMode(tab.dataset.mode as ShiftMode)));
   startButton.addEventListener("click", () => void startRun().catch(showError));
@@ -651,6 +735,9 @@ async function initialise(): Promise<void> {
     void localAudio.play();
   });
   element("#clearOriginal").addEventListener("click", () => void clearMicrophoneCapture());
+  element<HTMLSelectElement>("#outputSelect").addEventListener("change", (event) => {
+    void selectAudioOutput((event.currentTarget as HTMLSelectElement).value);
+  });
   recordButton.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     recordIntent = true;
@@ -695,7 +782,10 @@ async function initialise(): Promise<void> {
   element("#staffButton").addEventListener("click", () => toggleStaff(true));
   element("#closeStaff").addEventListener("click", () => toggleStaff(false));
   element("#scrim").addEventListener("click", () => toggleStaff(false));
-  navigator.mediaDevices?.addEventListener("devicechange", () => void refreshMicrophones());
+  navigator.mediaDevices?.addEventListener("devicechange", () => {
+    void refreshMicrophones();
+    void refreshAudioOutputs();
+  });
   window.addEventListener("beforeunload", () => {
     socket?.close();
     void microphoneRecorder.cancel();

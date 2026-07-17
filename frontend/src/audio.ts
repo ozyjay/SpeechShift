@@ -11,6 +11,10 @@ export interface RecorderCallbacks {
   onDeviceEnded: () => void;
 }
 
+export interface AudioSinkTarget {
+  setSinkId?: (deviceId: string) => Promise<void>;
+}
+
 export class BoundedSampleBuffer {
   readonly maximumSamples: number;
   #chunks: Float32Array[] = [];
@@ -176,6 +180,36 @@ export async function listMicrophones(): Promise<MediaDeviceInfo[]> {
   ensureMicrophoneSupport();
   const devices = await navigator.mediaDevices.enumerateDevices();
   return devices.filter((device) => device.kind === "audioinput");
+}
+
+export function supportsAudioOutputSelection(target: AudioSinkTarget): boolean {
+  return typeof target.setSinkId === "function";
+}
+
+export async function listAudioOutputs(
+  enumerateDevices: () => Promise<MediaDeviceInfo[]> = () => navigator.mediaDevices.enumerateDevices(),
+): Promise<MediaDeviceInfo[]> {
+  const devices = await enumerateDevices();
+  return devices.filter((device) => device.kind === "audiooutput");
+}
+
+export function resolveAudioOutputDeviceId(
+  selectedDeviceId: string,
+  devices: readonly MediaDeviceInfo[],
+): string {
+  if (!selectedDeviceId) return "";
+  return devices.some((device) => (
+    device.kind === "audiooutput"
+    && device.deviceId !== "default"
+    && device.deviceId === selectedDeviceId
+  )) ? selectedDeviceId : "";
+}
+
+export async function setAudioOutput(targets: readonly AudioSinkTarget[], deviceId: string): Promise<void> {
+  if (!targets.every(supportsAudioOutputSelection)) {
+    throw new Error("This browser does not support audio output selection.");
+  }
+  await Promise.all(targets.map((target) => target.setSinkId!(deviceId)));
 }
 
 export function microphoneErrorMessage(error: unknown): string {

@@ -2,7 +2,7 @@
 
 ## Before opening
 
-1. Confirm headphones are connected and output volume is comfortable.
+1. Confirm headphones are connected, select them under **Operator controls → Playback output**, play both an original microphone check and a prepared result, and confirm the output volume is comfortable. If browser output selection is unavailable, select the booth device in system settings and confirm the operator diagnostic reports that limitation.
 2. Run `scripts/start_dev.ps1` until OpenDayOps formally allocates the port; after allocation use `scripts/start_openday.ps1` with the required confirmation setting.
 3. Open `http://127.0.0.1:3800` and run `scripts/smoke_test.ps1`.
 4. Grant microphone permission, choose the booth microphone, record a short local check and confirm the level meter and playback.
@@ -20,6 +20,7 @@ Select **Next visitor / Reset**. Confirm microphone capture and playback stop, t
 ## Recovery
 
 - Sound problem: select mute, check headphones, then reset.
+- Output disconnected: open **Operator controls**, confirm the output warning, choose the replacement device and replay a result. SpeechShift visibly returns to the system default when the selected output disappears.
 - Sequence stuck: select cancel, then reset. Refresh the browser if necessary.
 - Application unavailable: restart only SpeechShift after confirming port `3800` is free.
 - ModelDeck unavailable: no action is needed for replay; do not present a live provider as active.

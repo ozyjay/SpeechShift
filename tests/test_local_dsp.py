@@ -4,8 +4,9 @@ import sys
 from array import array
 
 import pytest
+from pydantic import ValidationError
 from speechshift.local_dsp import PROFILE_LABELS, LocalDspProvider, transform_pcm16
-from speechshift.models import MockRunRequest
+from speechshift.models import LocalRunRequest
 from speechshift.sessions import Session
 
 
@@ -57,9 +58,7 @@ def test_local_provider_streams_real_processed_pcm() -> None:
         source = sine_pcm(220, seconds=0.5)
         await LocalDspProvider().run(
             Session(id="local-session"),
-            MockRunRequest(
-                mode="voice",
-                sentence_id="campus",
+            LocalRunRequest(
                 selection_id="robot",
                 audio_format={"encoding": "pcm_s16le", "sample_rate_hz": 16_000, "channels": 1},
             ),
@@ -85,3 +84,20 @@ def test_local_provider_streams_real_processed_pcm() -> None:
 
     asyncio.run(scenario())
 
+
+def test_local_request_has_no_fixture_sentence_semantics() -> None:
+    request = LocalRunRequest(
+        selection_id="calm-narrator",
+        audio_format={"encoding": "pcm_s16le", "sample_rate_hz": 16_000, "channels": 1},
+    )
+    assert request.model_dump() == {
+        "selection_id": "calm-narrator",
+        "audio_format": {"encoding": "pcm_s16le", "sample_rate_hz": 16_000, "channels": 1},
+    }
+    with pytest.raises(ValidationError):
+        LocalRunRequest.model_validate(
+            {
+                **request.model_dump(),
+                "sentence_id": "campus",
+            }
+        )

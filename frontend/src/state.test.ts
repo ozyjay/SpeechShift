@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { acceptsEvent, formatLatency, pipelineErrorMessage } from "./state";
+import { acceptsEvent, formatLatency, pipelineErrorMessage, sourcePresentation } from "./state";
 
 describe("stream state", () => {
   it("rejects stale generations and repeated sequences", () => {
@@ -20,5 +20,16 @@ describe("stream state", () => {
     expect(pipelineErrorMessage("audio_silent")).toContain("No clear speech was detected");
     expect(pipelineErrorMessage("audio_too_short")).toContain("too short");
     expect(pipelineErrorMessage("unexpected")).toBe("Pipeline error: unexpected");
+  });
+
+  it("presents captured audio as the Local DSP input without a sentence choice", () => {
+    expect(sourcePresentation("local", 1.25)).toEqual({
+      heading: "Input recording",
+      title: "Your recording",
+      detail: "1.3 seconds captured in memory",
+      selectable: false,
+    });
+    expect(sourcePresentation("replay").selectable).toBe(true);
+    expect(sourcePresentation("mock-modeldeck").heading).toBe("Choose a fixture sentence");
   });
 });

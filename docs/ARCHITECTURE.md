@@ -38,7 +38,7 @@ Local DSP reuses only the narrow, proven algorithmic ideas inspected in VoiceCha
 - Energetic DSP slightly raises pitch, speeds delivery and applies bounded drive.
 - Artificial robot DSP applies 30 Hz ring modulation.
 
-Every profile applies an 82% sample ceiling and short start/end fades. Local DSP does not recognise or regenerate words and cannot provide Language Shift. The visitor UI hides recognition stages and explicitly describes this as signal processing rather than AI.
+Every profile applies an 82% sample ceiling and short start/end fades. Local DSP does not recognise or regenerate words and cannot provide Language Shift. The visitor UI hides recognition stages and explicitly describes this as signal processing rather than AI. Its request contains only the selected DSP profile and audio format: there is no sentence identifier because the captured recording is the input. The UI therefore shows **Your recording** instead of the replay fixture chooser.
 
 ## Session lifecycle
 

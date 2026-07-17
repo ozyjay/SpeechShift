@@ -17,6 +17,7 @@ from speechshift.config import Settings, SpeechProvider, get_settings
 from speechshift.local_dsp import PROFILE_LABELS, LocalDspProvider
 from speechshift.mock_provider import MockSpeechProvider
 from speechshift.models import (
+    LocalRunRequest,
     MockRunRequest,
     ProviderSelection,
     PublicConfig,
@@ -113,7 +114,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return
         await websocket.accept()
         active_task: asyncio.Task[None] | None = None
-        stream_request: MockRunRequest | None = None
+        stream_request: MockRunRequest | LocalRunRequest | None = None
         stream_buffer: SequencedPcmBuffer | None = None
         stream_provider: SpeechProvider | None = None
 
@@ -210,12 +211,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         await send({"type": "error", "code": "already_running", "recoverable": True})
                         continue
                     try:
-                        request = MockRunRequest.model_validate(message.get("request"))
+                        request = LocalRunRequest.model_validate(message.get("request"))
                     except ValueError:
                         await send({"type": "error", "code": "invalid_local_request", "recoverable": True})
-                        continue
-                    if request.mode.value != "voice":
-                        await send({"type": "error", "code": "unsupported_mode", "recoverable": True})
                         continue
                     if request.selection_id not in PROFILE_LABELS:
                         await send({"type": "error", "code": "invalid_profile", "recoverable": True})

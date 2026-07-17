@@ -13,7 +13,7 @@ import {
   sequencedPcm16Frames,
   supportsAudioOutputSelection,
 } from "./audio";
-import { acceptsEvent, formatLatency, pipelineErrorMessage } from "./state";
+import { acceptsEvent, formatLatency, pipelineErrorMessage, sourcePresentation } from "./state";
 import type { Catalogue, PublicConfig, Sentence, ShiftMode, StreamEvent } from "./types";
 
 const root = document.querySelector<HTMLDivElement>("#app");
@@ -77,7 +77,7 @@ root.innerHTML = `
 
       <div class="builder">
         <div class="choice-column">
-          <label class="step-label"><span>1</span> Choose a sentence</label>
+          <label class="step-label"><span>1</span> <span id="sourceHeading">Choose a sentence</span></label>
           <div id="sentenceChoices" class="choice-stack"></div>
         </div>
         <div class="choice-column">
@@ -87,7 +87,7 @@ root.innerHTML = `
       </div>
 
       <div class="action-row">
-        <div class="mic-state"><span class="mic-off">R</span><div><strong>Prepared transformation</strong><small>Your microphone recording is not sent to replay</small></div></div>
+        <div class="mic-state"><span class="mic-off">R</span><div><strong id="inputLabel">Prepared transformation</strong><small id="inputDetail">Your microphone recording is not sent to replay</small></div></div>
         <button id="startButton" class="start-button" type="button"><span class="play-icon">▶</span><span><b>Play the transformation</b><small>About 3 seconds</small></span></button>
       </div>
     </section>
@@ -95,7 +95,7 @@ root.innerHTML = `
     <section id="journey" class="journey" aria-live="polite">
       <div class="journey-heading"><div><p class="eyebrow">What is happening</p><h2>The speech journey</h2></div><div id="latency" class="latency">Ready for a prepared run</div></div>
       <div class="stage-track">
-        <article class="stage" data-stage="spoken"><span class="stage-number">1</span><div class="wave mini-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><h3>Spoken audio</h3><p>Prepared source clip</p></article>
+        <article class="stage" data-stage="spoken"><span class="stage-number">1</span><div class="wave mini-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><h3>Spoken audio</h3><p id="spokenDetail">Prepared source clip</p></article>
         <span class="arrow recognition-stage">→</span>
         <article class="stage recognition-stage" data-stage="recognised"><span class="stage-number">2</span><div class="stage-icon">Aa</div><h3>Recognised words</h3><p id="transcript">Waiting…</p></article>
         <span class="arrow language-stage">→</span>
@@ -186,6 +186,13 @@ function updateStartAvailability(): void {
           ? (capturedAudio ? "Streams your captured PCM to a deterministic mock" : "Record a local sample first")
           : "About 3 seconds");
   }
+  const recordedSourceDetail = document.querySelector("#recordedSourceDetail");
+  if (recordedSourceDetail && isLocal) {
+    recordedSourceDetail.textContent = sourcePresentation(
+      config.provider,
+      capturedAudio?.durationSeconds,
+    ).detail;
+  }
 }
 
 function updateProviderPresentation(): void {
@@ -219,7 +226,19 @@ function updateProviderPresentation(): void {
     : (isMock
         ? "Mock contract is selected. It sends bounded audio to the local backend and uses deterministic fixtures. Switch back to Replay for the public story."
         : "Replay is selected. Local DSP and the deterministic mock contract are available for supervised development testing.");
+  const source = sourcePresentation(config.provider, capturedAudio?.durationSeconds);
+  element("#sourceHeading").textContent = source.heading;
+  element("#inputLabel").textContent = isLocal
+    ? "Your recording"
+    : (isMock ? "Recorded transport with fixture output" : "Prepared transformation");
+  element("#inputDetail").textContent = isLocal
+    ? "The selected effect is applied directly to captured audio"
+    : (isMock ? "Fixture text does not describe the recorded words" : "Your microphone recording is not sent to replay");
+  element("#spokenDetail").textContent = isLocal
+    ? "Your captured audio"
+    : (isMock ? "Captured PCM with fixture text" : "Prepared source clip");
   element("#generatedNumber").textContent = isLocal ? "2" : (mode === "voice" ? "3" : "4");
+  renderChoices();
   updateStartAvailability();
 }
 
@@ -404,8 +423,16 @@ function currentSentence(): Sentence {
 
 function renderChoices(): void {
   const sentenceChoices = element("#sentenceChoices");
-  sentenceChoices.replaceChildren(
-    ...catalogue.sentences.map((sentence) => {
+  const source = sourcePresentation(config.provider, capturedAudio?.durationSeconds);
+  if (!source.selectable) {
+    const recordedSource = document.createElement("div");
+    recordedSource.className = "choice-card selected recorded-source";
+    recordedSource.innerHTML = `<span class="recording-source-icon" aria-hidden="true">●</span><span><b></b><small id="recordedSourceDetail"></small></span>`;
+    recordedSource.querySelector("b")!.textContent = source.title;
+    recordedSource.querySelector("small")!.textContent = source.detail;
+    sentenceChoices.replaceChildren(recordedSource);
+  } else {
+    sentenceChoices.replaceChildren(...catalogue.sentences.map((sentence) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = `choice-card ${sentence.id === selectedSentence ? "selected" : ""}`;
@@ -419,10 +446,12 @@ function renderChoices(): void {
         renderChoices();
       });
       return button;
-    }),
-  );
+    }));
+  }
 
-  const options = mode === "voice" ? currentSentence().voices : currentSentence().languages;
+  const options = config.provider === "local"
+    ? catalogue.sentences[0].voices
+    : (mode === "voice" ? currentSentence().voices : currentSentence().languages);
   const selectionChoices = element("#selectionChoices");
   selectionChoices.replaceChildren(
     ...options.map((option, index) => {
@@ -586,18 +615,19 @@ async function startRun(): Promise<void> {
   cancelButton.disabled = false;
   element("#journey").scrollIntoView({ behavior: "smooth", block: "start" });
   if (config.provider === "mock-modeldeck" || config.provider === "local") {
-    if (!capturedAudio) throw new Error("Record a local sample before running the mock contract.");
+    if (!capturedAudio) throw new Error(config.provider === "local"
+      ? "Record a local sample before applying Local DSP."
+      : "Record a local sample before running the mock contract.");
     element("#latency").textContent = config.provider === "local"
       ? "Applying local DSP in memory…"
       : "Sending bounded PCM to deterministic mock…";
+    const audioFormat = { encoding: "pcm_s16le", sample_rate_hz: capturedAudio.sampleRate, channels: 1 };
+    const request = config.provider === "local"
+      ? { selection_id: selectedOption, audio_format: audioFormat }
+      : { mode, sentence_id: selectedSentence, selection_id: selectedOption, audio_format: audioFormat };
     socket?.send(JSON.stringify({
       command: config.provider === "local" ? "start_local" : "start_mock",
-      request: {
-        mode,
-        sentence_id: selectedSentence,
-        selection_id: selectedOption,
-        audio_format: { encoding: "pcm_s16le", sample_rate_hz: capturedAudio.sampleRate, channels: 1 },
-      },
+      request,
     }));
     await sendBinaryFrames(sequencedPcm16Frames(capturedAudio.samples));
     socket?.send(JSON.stringify({ command: "end_audio" }));

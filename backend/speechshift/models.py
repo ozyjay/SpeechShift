@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ShiftMode(StrEnum):
@@ -23,6 +23,13 @@ class AudioFormat(BaseModel):
 
 
 class MockRunRequest(ReplayRunRequest):
+    audio_format: AudioFormat
+
+
+class LocalRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    selection_id: str = Field(min_length=1, max_length=64)
     audio_format: AudioFormat
 
 

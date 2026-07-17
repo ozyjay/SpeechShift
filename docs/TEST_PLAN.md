@@ -21,6 +21,7 @@
 - explicit development provider selection and unavailable live-provider rejection;
 - deterministic mock partial/final events, binary fixture output and metrics;
 - Local DSP profile validation, duration changes, amplitude ceiling, fades and real transformed binary output;
+- Local DSP request and interface contain no replay sentence semantics;
 - TypeScript type-check, production build, Python lint and tests.
 
 ## Operational now

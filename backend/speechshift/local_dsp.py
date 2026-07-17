@@ -8,7 +8,7 @@ from array import array
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from speechshift.models import MockRunRequest
+from speechshift.models import LocalRunRequest
 from speechshift.sessions import Session
 
 SendJson = Callable[[dict[str, Any]], Awaitable[None]]
@@ -27,7 +27,7 @@ class LocalDspProvider:
     async def run(
         self,
         session: Session,
-        request: MockRunRequest,
+        request: LocalRunRequest,
         input_pcm: bytes,
         input_frames: int,
         send_json: SendJson,

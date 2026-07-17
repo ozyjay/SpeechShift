@@ -1,5 +1,39 @@
 import type { StreamEvent } from "./types";
 
+export interface SourcePresentation {
+  heading: string;
+  title: string;
+  detail: string;
+  selectable: boolean;
+}
+
+export function sourcePresentation(provider: string, capturedSeconds?: number): SourcePresentation {
+  if (provider === "local") {
+    return {
+      heading: "Input recording",
+      title: "Your recording",
+      detail: capturedSeconds === undefined
+        ? "Record a sample above to use as the input"
+        : `${capturedSeconds.toFixed(1)} seconds captured in memory`,
+      selectable: false,
+    };
+  }
+  if (provider === "mock-modeldeck") {
+    return {
+      heading: "Choose a fixture sentence",
+      title: "Fixture sentence",
+      detail: "Mock text and output follow this prepared fixture",
+      selectable: true,
+    };
+  }
+  return {
+    heading: "Choose a sentence",
+    title: "Prepared sentence",
+    detail: "This chooses the prepared source clip",
+    selectable: true,
+  };
+}
+
 export const stageOrder = ["spoken", "recognised", "translated", "generated"] as const;
 
 export function acceptsEvent(event: StreamEvent, generation: number, lastSequence: number): boolean {

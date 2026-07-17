@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from speechshift.audio_activity import analyse_pcm16_activity
 from speechshift.config import Settings, SpeechProvider, get_settings
-from speechshift.local_dsp import PROFILE_LABELS, LocalDspProvider
+from speechshift.local_dsp import PROFILE_DESCRIPTIONS, PROFILE_LABELS, LocalDspProvider
 from speechshift.mock_provider import MockSpeechProvider
 from speechshift.models import (
     LocalRunRequest,
@@ -82,6 +82,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             safe_output_volume=settings.safe_output_volume,
             port_allocation_confirmed=settings.port_allocation_confirmed,
             providers=provider_registry.statuses(),
+            local_voice_profiles=[
+                {
+                    "id": profile_id,
+                    "label": label,
+                    "description": PROFILE_DESCRIPTIONS[profile_id],
+                }
+                for profile_id, label in PROFILE_LABELS.items()
+            ],
         )
 
     @app.post("/api/providers/select", response_model=PublicConfig)

@@ -37,8 +37,20 @@ Local DSP reuses only the narrow, proven algorithmic ideas inspected in VoiceCha
 - Calm DSP slightly lowers pitch, slows delivery and smooths high-frequency variation.
 - Energetic DSP slightly raises pitch, speeds delivery and applies bounded drive.
 - Artificial robot DSP applies 30 Hz ring modulation.
+- Anonymised voice applies a fixed McAdams coefficient to short-frame LPC pole
+  angles, reshaping formant emphasis without changing the recording duration.
 
 Every profile applies an 82% sample ceiling and short start/end fades. Local DSP does not recognise or regenerate words and cannot provide Language Shift. The visitor UI hides recognition stages and explicitly describes this as signal processing rather than AI. Its request contains only the selected DSP profile and audio format: there is no sentence identifier because the captured recording is the input. The UI therefore shows **Your recording** instead of the replay fixture chooser.
+
+The anonymised profile is an independent standard-library implementation of
+the McAdams-coefficient technique used by the
+[VoicePrivacy B2 baseline](https://github.com/Voice-Privacy-Challenge/Voice-Privacy-Challenge-2026).
+It has
+no model, checkpoint, network access, transcript, real speaker identifier or
+target recording. The profile is deterministic and intended as an experimental
+privacy treatment, not proof that a speaker cannot be re-identified. It remains
+development-only until the same synthetic-corpus privacy and intelligibility
+gates used for model candidates have been measured.
 
 ## Session lifecycle
 

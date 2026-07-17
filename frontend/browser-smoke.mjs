@@ -167,7 +167,13 @@ async function verifyProviderPresentation(page) {
   check(await page.locator("#sentenceChoices .recorded-source b").textContent() === "Your recording", "Local DSP does not identify the recording as input");
   check(await page.locator('.mode-tab[data-mode="language"]').isDisabled(), "Local DSP still enables Language Shift");
   check(await page.locator("#startButton").isDisabled(), "Local DSP can start without a recording");
+  check(await page.locator("#selectionChoices button").count() === 4, "Local DSP profiles are incomplete");
+  await page.locator("#closeStaff").click();
+  const anonymised = page.locator("#selectionChoices").getByRole("button", { name: /Anonymised voice/i });
+  await anonymised.click();
+  check(await anonymised.locator("small").textContent() === "Experimental formant reshaping that keeps the recording's timing", "Anonymised voice limitations are unclear");
 
+  await page.locator("#staffButton").click();
   await selectProvider(page, "Mock contract");
   check(await page.locator("#sourceHeading").textContent() === "Choose a fixture sentence", "Mock sentence choices are not labelled as fixtures");
   check(await page.locator("#sentenceChoices button").count() === 3, "Mock fixture choices are incomplete");
@@ -176,6 +182,7 @@ async function verifyProviderPresentation(page) {
   await selectProvider(page, "Replay", "Replay mode");
   check(await page.locator("#sourceHeading").textContent() === "Choose a sentence", "Replay sentence heading was not restored");
   check(await page.locator("#sentenceChoices button").count() === 3, "Replay sentence choices were not restored");
+  check(await page.locator("#selectionChoices .selected").count() === 1, "Replay retained an invalid local-only profile");
 }
 
 async function main() {

@@ -42,6 +42,17 @@ def test_pitch_profiles_change_duration_in_expected_direction() -> None:
     assert len(transform_pcm16(original, 16_000, "calm-narrator")) > len(original)
     assert len(transform_pcm16(original, 16_000, "energetic-presenter")) < len(original)
     assert len(transform_pcm16(original, 16_000, "robot")) == len(original)
+    assert len(transform_pcm16(original, 16_000, "anonymised-voice")) == len(original)
+
+
+def test_anonymised_profile_is_deterministic_without_identity_input() -> None:
+    original = sine_pcm(180, seconds=0.6)
+    first = transform_pcm16(original, 16_000, "anonymised-voice")
+    second = transform_pcm16(original, 16_000, "anonymised-voice")
+
+    assert first == second
+    assert first != original
+    assert len(first) == len(original)
 
 
 def test_local_provider_streams_real_processed_pcm() -> None:
@@ -99,5 +110,13 @@ def test_local_request_has_no_fixture_sentence_semantics() -> None:
             {
                 **request.model_dump(),
                 "sentence_id": "campus",
+            }
+        )
+
+    with pytest.raises(ValidationError):
+        LocalRunRequest.model_validate(
+            {
+                **request.model_dump(),
+                "target_voice": "visitor-reference",
             }
         )

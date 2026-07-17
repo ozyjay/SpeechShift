@@ -7,6 +7,12 @@ export interface VoiceOption {
   audio: string;
 }
 
+export interface LocalVoiceProfile {
+  id: string;
+  label: string;
+  description: string;
+}
+
 export interface LanguageOption {
   id: string;
   label: string;
@@ -46,6 +52,7 @@ export interface PublicConfig {
   safe_output_volume: number;
   port_allocation_confirmed: boolean;
   providers: ProviderStatus[];
+  local_voice_profiles: LocalVoiceProfile[];
 }
 
 export interface StreamEvent {

@@ -14,6 +14,8 @@ SpeechShift implements the workspace content and safety policy with these contro
 - safe output volume capped at 85%, with a default of 75%;
 - short curated sentences and no open-ended conversation;
 - only non-identifying synthetic voice styles;
+- an experimental local anonymisation effect accepts no target voice or speaker
+  identity and is not presented as a re-identification guarantee;
 - replay and prepared timing labelled in the visitor UI;
 - errors and limitations stated without claiming human-like understanding.
 

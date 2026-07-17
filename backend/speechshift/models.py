@@ -49,6 +49,12 @@ class ProviderStatus(BaseModel):
     detail: str
 
 
+class LocalVoiceProfile(BaseModel):
+    id: str
+    label: str
+    description: str
+
+
 class PublicConfig(BaseModel):
     demo_name: str
     demo_mode: str
@@ -59,3 +65,4 @@ class PublicConfig(BaseModel):
     safe_output_volume: float
     port_allocation_confirmed: bool
     providers: list[ProviderStatus]
+    local_voice_profiles: list[LocalVoiceProfile]

@@ -33,6 +33,10 @@ Open **Operator controls** and explicitly choose **Mock contract**. Record a sho
 
 Open **Operator controls** and choose **Local DSP**. Record the curated sentence, select each voice profile and use **Apply local voice shift**. Confirm output is clear, bounded and recognisably changed. Explain that this baseline uses ordinary signal processing rather than AI. Language Shift is deliberately unavailable. Return to **Replay** before public operation until Local DSP passes event acceptance.
 
+For **Anonymised voice**, also confirm that output duration matches the input.
+Describe it as an experimental formant-shifting privacy treatment, not a
+guarantee of anonymity. It uses no transcript, target voice or model download.
+
 ## Shutdown
 
 Reset the active session, close the browser and interrupt the foreground SpeechShift process. If it is detached, use `scripts/stop.ps1`, which refuses to stop a process that does not identify as SpeechShift. Application shutdown clears remaining in-memory sessions.

@@ -450,8 +450,9 @@ function renderChoices(): void {
   }
 
   const options = config.provider === "local"
-    ? catalogue.sentences[0].voices
+    ? config.local_voice_profiles
     : (mode === "voice" ? currentSentence().voices : currentSentence().languages);
+  if (!options.some((option) => option.id === selectedOption)) selectedOption = options[0].id;
   const selectionChoices = element("#selectionChoices");
   selectionChoices.replaceChildren(
     ...options.map((option, index) => {

@@ -21,11 +21,12 @@
 - explicit development provider selection and unavailable live-provider rejection;
 - deterministic mock partial/final events, binary fixture output and metrics;
 - Local DSP profile validation, duration changes, amplitude ceiling, fades and real transformed binary output;
+- deterministic local anonymisation, duration preservation and rejection of target-voice fields;
 - Local DSP request and interface contain no replay sentence semantics;
 - model checkpoint licence audit blocks downloads unless every declared artefact is reviewed;
 - voice-transform readiness thresholds, schema-version compatibility and a twelve-clip in-memory synthetic eSpeak harness;
 - TypeScript type-check, production build, Python lint and tests;
-- headless system-Chromium smoke across every replay combination, provider-specific source semantics, audio loading and visitor reset.
+- headless system-Chromium smoke across every replay combination, local-only anonymisation selection, provider-specific source semantics, audio loading and visitor reset.
 
 ## Operational now
 

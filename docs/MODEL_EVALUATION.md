@@ -21,3 +21,11 @@ The command records the Fedora, kernel, Python, repository revision and availabl
 ```
 
 A prepared or partially completed record fails closed. Probe results are local engineering artefacts and should not contain visitor audio, transcripts, credentials or private system data.
+
+## First physical probe: Whisper `small.en`
+
+The first Framework Desktop probe used the pinned candidate in `docs/model_candidates/whisper-small-en-rocm.json`. OpenAI Whisper `small.en` completed FP16 inference on the Radeon 8060S (`gfx1151`) through PyTorch's ROCm 7.1 build. A synthetic 4.85-second Australian English sample produced an exact normalised match in 1.01 seconds after a 1.49-second cached model load. Peak tracked GPU allocation was 1,294 MB and peak process RSS was 2,272 MB.
+
+Fedora's installed HSA runtime must currently be preloaded for this path. PyTorch 2.10.0's bundled HSA runtime enumerates the GPU but segfaults on the first tensor operation; the Fedora ROCm 7.1.1 runtime completes the same operation. This is an explicit development-only compatibility requirement, not a silent fallback or an architecture override.
+
+This candidate is **not ready for promotion**. The upstream interface is batch-oriented, the streaming and request-level cancellation gates have not passed, the generic Triton dependency alongside `triton-rocm` needs resolution, and public-output safety review needs a broader corpus. No `local` or `modeldeck` capability is enabled by this probe.

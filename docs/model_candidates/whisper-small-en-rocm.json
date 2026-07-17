@@ -1,0 +1,17 @@
+{
+  "candidate_id": "openai-whisper-small-en-rocm",
+  "capability": "speech.recognise",
+  "repository": "https://github.com/openai/whisper",
+  "revision": "31243bad24cc746f07d4c8bfdd2d974872cb1803",
+  "model_id": "small.en (checkpoint SHA-256 f953ad0fd29cacd07d5a9eda5624af0f6bcf2258be67c92b79389873d91e0872)",
+  "licence": "MIT for code and model weights",
+  "licence_reviewed": true,
+  "parameters": "244M",
+  "precision": "FP16 on ROCm",
+  "languages": [
+    "English"
+  ],
+  "framework": "OpenAI Whisper v20250625; PyTorch 2.10.0 official ROCm 7.1 wheel; Python 3.12",
+  "cuda_or_triton_requirements": "Whisper uses PyTorch CUDA device APIs, which ROCm intentionally reuses. Linux x86_64 declares Triton >=2.0; PyTorch's ROCm wheel supplies triton-rocm, but pip does not treat that distribution as satisfying Whisper's generic Triton dependency. Basic transcription passed without an HSA architecture override; the Fedora system HSA runtime had to be preloaded because PyTorch's bundled HSA library crashed on the first GPU tensor operation.",
+  "maintenance_status": "Latest upstream release v20250625, published 26 June 2025; pinned release includes current-Triton compatibility fixes."
+}

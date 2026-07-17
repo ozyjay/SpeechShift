@@ -7,3 +7,5 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 *.tsbuildinfo
+.model-cache/
+probe-results/

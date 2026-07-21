@@ -19,6 +19,19 @@ import type { Catalogue, PublicConfig, Sentence, ShiftMode, StreamEvent } from "
 const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("Application root is missing");
 
+const outputOnIcon = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M5 9v6h4l5 4V5L9 9H5Z"></path>
+    <path d="M17 9.5c.8.7 1.2 1.5 1.2 2.5s-.4 1.8-1.2 2.5"></path>
+    <path d="M19.5 7c1.4 1.3 2.1 3 2.1 5s-.7 3.7-2.1 5"></path>
+  </svg>`;
+const outputMutedIcon = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M5 9v6h4l5 4V5L9 9H5Z"></path>
+    <path d="m17.5 9.5 4 5"></path>
+    <path d="m21.5 9.5-4 5"></path>
+  </svg>`;
+
 root.innerHTML = `
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
   <header class="topbar">
@@ -28,7 +41,7 @@ root.innerHTML = `
     </a>
     <div class="top-actions">
       <div class="provider-pill"><span class="status-dot"></span><strong id="providerLabel">Loading…</strong></div>
-      <button class="icon-button" id="muteButton" type="button" aria-pressed="false" title="Mute output">◖</button>
+      <button class="icon-button" id="muteButton" type="button" aria-label="Mute output" aria-pressed="false" title="Mute output">${outputOnIcon}</button>
       <button class="staff-button" id="staffButton" type="button">Operator controls <span>⌘</span></button>
     </div>
   </header>
@@ -804,7 +817,11 @@ async function initialise(): Promise<void> {
     audio.volume = muted ? 0 : config.safe_output_volume;
     localAudio.volume = muted ? 0 : config.safe_output_volume;
     const button = element<HTMLButtonElement>("#muteButton");
-    button.setAttribute("aria-pressed", String(muted)); button.textContent = muted ? "×" : "◖";
+    const label = muted ? "Unmute output" : "Mute output";
+    button.setAttribute("aria-pressed", String(muted));
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.innerHTML = muted ? outputMutedIcon : outputOnIcon;
   });
   const toggleStaff = (open: boolean): void => {
     element("#staffPanel").classList.toggle("open", open); element("#scrim").classList.toggle("open", open);

@@ -82,6 +82,17 @@ async function selectProvider(page, name, expectedLabel = name) {
   await page.locator("#providerLabel").getByText(expectedLabel, { exact: true }).waitFor();
 }
 
+async function verifyMuteControl(page) {
+  const button = page.locator("#muteButton");
+  check(await button.getAttribute("aria-label") === "Mute output", "Mute control has the wrong initial label");
+  check(await button.locator("svg").count() === 1, "Mute control is missing its speaker icon");
+  await button.click();
+  check(await button.getAttribute("aria-pressed") === "true", "Mute control did not enter its pressed state");
+  check(await button.getAttribute("aria-label") === "Unmute output", "Muted control has the wrong label");
+  await button.click();
+  check(await button.getAttribute("aria-pressed") === "false", "Mute control did not restore its state");
+}
+
 async function verifyReplayCombinations(page, catalogue) {
   const successfulAudio = new Set();
   const failedAudio = [];
@@ -209,6 +220,7 @@ async function main() {
   await page.locator("#providerLabel").getByText("Replay mode", { exact: true }).waitFor();
   const catalogue = await (await fetch(`${baseUrl}/api/replay/catalogue`)).json();
 
+  await verifyMuteControl(page);
   await verifyReplayCombinations(page, catalogue);
   await verifyProviderPresentation(page);
   console.log("Browser smoke passed: replay combinations, provider semantics, audio loading and reset.");

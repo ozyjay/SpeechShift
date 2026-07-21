@@ -49,6 +49,7 @@ export interface PublicConfig {
   provider_label: string;
   audio_sample_rate: number;
   max_input_seconds: number;
+  visitor_idle_timeout_seconds: number;
   safe_output_volume: number;
   port_allocation_confirmed: boolean;
   providers: ProviderStatus[];

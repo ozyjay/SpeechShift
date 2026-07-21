@@ -30,6 +30,12 @@ def test_rejects_persistent_visitor_data(key: str, value: object) -> None:
         settings(**{key: value})
 
 
+@pytest.mark.parametrize("timeout", [29, 901])
+def test_rejects_unsafe_visitor_idle_timeout(timeout: int) -> None:
+    with pytest.raises(ValidationError):
+        settings(visitor_idle_timeout_seconds=timeout)
+
+
 @pytest.mark.parametrize(
     "url",
     [
@@ -52,4 +58,3 @@ def test_open_day_requires_confirmed_allocation() -> None:
 def test_open_day_rejects_unrehearsed_live_provider() -> None:
     with pytest.raises(ValidationError, match="no rehearsed live provider"):
         settings(demo_mode="openday", port_allocation_confirmed=True, speech_provider="modeldeck")
-

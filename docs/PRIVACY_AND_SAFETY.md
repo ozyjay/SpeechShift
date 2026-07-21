@@ -21,6 +21,8 @@ SpeechShift implements the workspace content and safety policy with these contro
 
 Reset stops microphone capture and output, revokes the local recording URL, cancels active work, invalidates stale events and deletes the server session. Shutdown clears all remaining in-memory sessions.
 
+Once visitor data or a backend session exists, the interface automatically performs the same reset after 120 seconds without deliberate pointer or keyboard activity. It warns 15 seconds before expiry, and activity renews the timer. Operators may configure the idle period from 30 to 900 seconds with `VISITOR_IDLE_TIMEOUT_SECONDS`; changing the explicit provider is never part of an automatic reset.
+
 Recommended sign:
 
 > This demonstration processes your voice during a live interaction and clears it when the session resets. Please do not say private information. Generated voices and translations may contain errors. Replay mode uses prepared audio and does not activate the microphone.

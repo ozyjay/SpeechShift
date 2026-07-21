@@ -53,6 +53,7 @@ def test_public_config_keeps_live_providers_visibly_unavailable() -> None:
         assert payload["provider_label"] == "Replay mode"
         assert payload["audio_sample_rate"] == 16_000
         assert payload["max_input_seconds"] == 8
+        assert payload["visitor_idle_timeout_seconds"] == 120
         assert payload["local_voice_profiles"][-1] == {
             "id": "anonymised-voice",
             "label": "Anonymised voice",

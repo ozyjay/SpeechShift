@@ -20,6 +20,7 @@ SpeechShift is an honest replay-first MVP with a separate local microphone found
 - Hold-to-record capture with an eight-second hard limit and live input-level meter.
 - Mono 16 kHz PCM conversion and local original-audio playback entirely in browser memory.
 - Microphone unplug handling and recording cleanup on cancel, reset and page exit.
+- A visible inactivity warning followed by automatic visitor-data clearing.
 - Staff-selectable deterministic mock contract in development mode.
 - Sequenced, bounded binary PCM input and output over the session WebSocket.
 - Partial/final transcript events, translation events, streamed output audio, cancellation and structured errors.

@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     audio_sample_rate: int = Field(default=16_000, ge=8_000, le=48_000)
     audio_channels: int = Field(default=1, ge=1, le=2)
     max_input_seconds: int = Field(default=8, ge=1, le=15)
+    visitor_idle_timeout_seconds: int = Field(default=120, ge=30, le=900)
     safe_output_volume: float = Field(default=0.75, ge=0.0, le=0.85)
     replay_asset_dir: Path = Path("assets/replay")
     store_visitor_audio: bool = False

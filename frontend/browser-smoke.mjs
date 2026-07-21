@@ -196,6 +196,32 @@ async function verifyProviderPresentation(page) {
   check(await page.locator("#selectionChoices .selected").count() === 1, "Replay retained an invalid local-only profile");
 }
 
+async function verifyInactivityReset(page) {
+  await page.route("**/api/config", async (route) => {
+    const response = await route.fetch();
+    const config = await response.json();
+    config.visitor_idle_timeout_seconds = 2;
+    await route.fulfill({ response, json: config });
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator("#providerLabel").getByText("Replay mode", { exact: true }).waitFor();
+
+  await page.locator("#startButton").click();
+  const warning = page.locator("#inactivityWarning");
+  await warning.waitFor({ state: "visible", timeout: 2_000 });
+  await page.locator(".journey-heading").click();
+  await warning.waitFor({ state: "hidden" });
+  await warning.waitFor({ state: "visible", timeout: 2_000 });
+  await page.waitForFunction(() => (
+    document.querySelector("#sessionState")?.textContent === "Cleared · inactivity timeout"
+  ), undefined, { timeout: 2_000 });
+
+  check(await warning.isHidden(), "Inactivity warning remained visible after reset");
+  check(await page.locator("#transcript").textContent() === "Waiting…", "Inactivity reset retained transcript text");
+  check(await page.locator("#audioPlayer").getAttribute("src") === null, "Inactivity reset retained result audio");
+  check(await page.locator("#providerLabel").textContent() === "Replay mode", "Inactivity reset changed provider");
+}
+
 async function main() {
   await access(pythonPath, constants.X_OK);
   const chromiumPath = await findExecutable();
@@ -223,7 +249,8 @@ async function main() {
   await verifyMuteControl(page);
   await verifyReplayCombinations(page, catalogue);
   await verifyProviderPresentation(page);
-  console.log("Browser smoke passed: replay combinations, provider semantics, audio loading and reset.");
+  await verifyInactivityReset(page);
+  console.log("Browser smoke passed: replay combinations, provider semantics, audio loading, reset and inactivity clearing.");
 }
 
 try {

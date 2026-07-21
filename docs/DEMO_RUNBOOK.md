@@ -17,6 +17,8 @@
 
 Select **Next visitor / Reset**. Confirm microphone capture and playback stop, the local recording is unavailable, the journey returns to waiting, and the staff session diagnostic says cleared.
 
+If visitor data is left unattended, a privacy warning appears 15 seconds before the configured inactivity timeout. Pointer or keyboard activity keeps the session active; otherwise SpeechShift performs the same reset automatically without changing the selected provider.
+
 ## Recovery
 
 - Sound problem: select mute, check headphones, then reset.

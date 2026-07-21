@@ -62,6 +62,7 @@ class PublicConfig(BaseModel):
     provider_label: str
     audio_sample_rate: int
     max_input_seconds: int
+    visitor_idle_timeout_seconds: int
     safe_output_volume: float
     port_allocation_confirmed: bool
     providers: list[ProviderStatus]

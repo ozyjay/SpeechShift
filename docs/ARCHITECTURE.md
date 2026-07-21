@@ -67,6 +67,7 @@ Microphone capture is intentionally independent of the replay provider:
 5. Release, the duration limit, cancellation or device loss stops tracks and closes the audio context.
 6. A completed recording is resampled to mono 16 kHz PCM and encoded as an in-memory WAV for local playback.
 7. Clear, reset or page exit revokes the object URL and discards the samples.
+8. Once visitor data or a backend session exists, deliberate pointer or keyboard activity renews a bounded idle timer. A visible warning appears before expiry; expiry reuses the full reset path to stop capture and playback, revoke audio URLs, clear text and delete the backend session without changing provider.
 
 Replay mode keeps every microphone frame and WAV in the browser. Local DSP and Mock contract add an explicit transport step: mono 16 kHz PCM16 is divided into sequenced binary frames, sent with backpressure over the session WebSocket and accumulated in a backend buffer capped at eight seconds. Both output paths use the same sequenced binary framing in reverse. The browser rebuilds a memory-only WAV and revokes it on reset.
 

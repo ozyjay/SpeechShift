@@ -11,6 +11,7 @@
 - cancellation before replay emission;
 - API health truthfulness and structured invalid-request errors;
 - frontend stale-event rejection and honest latency labelling;
+- inactivity warning, activity renewal and automatic visitor-data clearing without provider changes;
 - explicit output-device discovery and routing of both playback players;
 - hard-bounded audio frame buffering;
 - deterministic 48 kHz to 16 kHz resampling shape;

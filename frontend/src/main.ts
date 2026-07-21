@@ -13,6 +13,7 @@ import {
   sequencedPcm16Frames,
   supportsAudioOutputSelection,
 } from "./audio";
+import { InactivityReset } from "./inactivity";
 import { acceptsEvent, formatLatency, pipelineErrorMessage, sourcePresentation } from "./state";
 import type { Catalogue, PublicConfig, Sentence, ShiftMode, StreamEvent } from "./types";
 
@@ -133,6 +134,10 @@ root.innerHTML = `
     <button id="staffReset" class="danger-button" type="button">Cancel and clear session</button>
   </aside>
   <div id="scrim" class="scrim"></div>
+  <aside id="inactivityWarning" class="inactivity-warning" role="alert" aria-live="assertive" hidden>
+    <div><strong>Still using this session?</strong><span>For privacy, it will reset in <b id="inactivitySeconds">15</b> seconds. Touch or press a key to continue.</span></div>
+    <button id="inactivityResetButton" type="button">Reset now</button>
+  </aside>
 `;
 
 const element = <T extends HTMLElement>(selector: string): T => {
@@ -162,6 +167,7 @@ let capturedAudio: CapturedAudio | null = null;
 let streamedOutput: SequencedPcmOutput | null = null;
 let streamedOutputSampleRate = 16_000;
 let selectedOutputDeviceId = "";
+let inactivityReset: InactivityReset | null = null;
 
 const audio = element<HTMLAudioElement>("#audioPlayer");
 const localAudio = element<HTMLAudioElement>("#localAudioPlayer");
@@ -374,6 +380,7 @@ function revokeLocalAudio(): void {
   element<HTMLButtonElement>("#playOriginal").disabled = true;
   element<HTMLButtonElement>("#clearOriginal").disabled = true;
   updateStartAvailability();
+  syncInactivityProtection();
 }
 
 async function beginMicrophoneCapture(): Promise<void> {
@@ -413,6 +420,7 @@ async function finishMicrophoneCapture(limitMessage?: string): Promise<void> {
     const duration = captured.durationSeconds.toFixed(1);
     updateMicrophoneState(limitMessage ?? `Captured ${duration} seconds in browser memory.`, "captured");
     updateStartAvailability();
+    syncInactivityProtection();
   } catch (error) {
     updateMicrophoneState(microphoneErrorMessage(error), "error");
   } finally {
@@ -514,6 +522,18 @@ function resetJourney(): void {
   cancelButton.disabled = true;
   replayButton.disabled = true;
   stopWaveform();
+  syncInactivityProtection();
+}
+
+function syncInactivityProtection(): void {
+  if (sessionId || capturedAudio || lastAudioUrl || streamedOutput) inactivityReset?.arm();
+  else inactivityReset?.disarm();
+}
+
+function showInactivityWarning(remainingSeconds: number | null): void {
+  const warning = element<HTMLElement>("#inactivityWarning");
+  warning.hidden = remainingSeconds === null;
+  if (remainingSeconds !== null) element("#inactivitySeconds").textContent = String(remainingSeconds);
 }
 
 function setStage(stageName: string): void {
@@ -606,6 +626,7 @@ async function createAndConnectSession(): Promise<void> {
   const data = await response.json() as { session_id: string; generation: number };
   sessionId = data.session_id;
   generation = data.generation;
+  syncInactivityProtection();
   socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/sessions/${sessionId}`);
   socket.binaryType = "arraybuffer";
   await new Promise<void>((resolve, reject) => {
@@ -666,7 +687,8 @@ async function sendBinaryFrames(frames: ArrayBuffer[]): Promise<void> {
   }
 }
 
-async function clearSession(): Promise<void> {
+async function clearSession(reason: "manual" | "inactivity" = "manual"): Promise<void> {
+  inactivityReset?.disarm();
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ command: "cancel" }));
   socket?.close();
   socket = null;
@@ -674,9 +696,15 @@ async function clearSession(): Promise<void> {
   sessionId = null;
   generation += 1;
   element("#connectionState").textContent = "Idle";
-  element("#sessionState").textContent = "Cleared";
+  element("#sessionState").textContent = reason === "inactivity" ? "Cleared · inactivity timeout" : "Cleared";
   await clearMicrophoneCapture();
   resetJourney();
+  if (reason === "inactivity") {
+    element("#latency").textContent = "Session cleared after inactivity. Ready for the next visitor.";
+    element("#staffPanel").classList.remove("open");
+    element("#scrim").classList.remove("open");
+    element("#staffPanel").setAttribute("aria-hidden", "true");
+  }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -747,6 +775,11 @@ async function initialise(): Promise<void> {
   if (!configResponse.ok || !catalogueResponse.ok) throw new Error("SpeechShift could not load its local replay data");
   config = await configResponse.json() as PublicConfig;
   catalogue = await catalogueResponse.json() as Catalogue;
+  inactivityReset = new InactivityReset({
+    timeoutSeconds: config.visitor_idle_timeout_seconds,
+    onWarning: showInactivityWarning,
+    onReset: () => clearSession("inactivity"),
+  });
   microphoneRecorder = new MicrophoneRecorder(config.audio_sample_rate, config.max_input_seconds, {
     onLevel: (level) => { element<HTMLElement>("#inputLevel").style.width = `${Math.round(level * 100)}%`; },
     onLimitReached: () => {
@@ -812,6 +845,7 @@ async function initialise(): Promise<void> {
   });
   element("#resetButton").addEventListener("click", () => void clearSession());
   element("#staffReset").addEventListener("click", () => void clearSession());
+  element("#inactivityResetButton").addEventListener("click", () => void clearSession());
   element("#muteButton").addEventListener("click", () => {
     muted = !muted;
     audio.volume = muted ? 0 : config.safe_output_volume;
@@ -830,6 +864,8 @@ async function initialise(): Promise<void> {
   element("#staffButton").addEventListener("click", () => toggleStaff(true));
   element("#closeStaff").addEventListener("click", () => toggleStaff(false));
   element("#scrim").addEventListener("click", () => toggleStaff(false));
+  document.addEventListener("pointerdown", () => inactivityReset?.activity(), { capture: true });
+  document.addEventListener("keydown", () => inactivityReset?.activity(), { capture: true });
   navigator.mediaDevices?.addEventListener("devicechange", () => {
     void refreshMicrophones();
     void refreshAudioOutputs();

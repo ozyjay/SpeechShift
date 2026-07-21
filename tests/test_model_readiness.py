@@ -207,3 +207,21 @@ def test_voiceprivacy_b3_manifest_is_pinned_and_download_blocked() -> None:
         "licence review is incomplete",
         "artefact licence review is incomplete: anonymization.zip, asr.zip, tts.zip",
     ]
+
+
+def test_cascade_candidate_manifests_are_pinned_and_licence_reviewed() -> None:
+    expected = {
+        "opus-mt-en-fr.json": ("text.translate", "dd7f6540a7a48a7f4db59e5c0b9c42c8eea67f18"),
+        "opus-mt-en-de.json": ("text.translate", "6183067f769a302e3861815543b9f312c71b0ca4"),
+        "qwen3-tts-0.6b-customvoice-rocm.json": (
+            "speech.synthesise",
+            "85e237c12c027371202489a0ec509ded67b5e4b5",
+        ),
+    }
+    for filename, (capability, revision) in expected.items():
+        manifest = CandidateManifest.model_validate_json(
+            Path("docs/model_candidates", filename).read_text(encoding="utf-8")
+        )
+        assert manifest.capability == capability
+        assert manifest.revision == revision
+        assert candidate_licence_failures(manifest) == []

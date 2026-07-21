@@ -43,3 +43,13 @@ Run the machine-readable gate with:
 ```
 
 Until every archive has an explicit reviewed licence, SpeechShift will not download the checkpoints, construct the isolated model environment, or claim ROCm compatibility. The in-memory probe harness and synthetic twelve-clip eSpeak corpus are implemented and unit tested so physical work can resume without changing the privacy boundary if the rights are clarified. No provider or interface behaviour changes as a result of this blocked candidate.
+
+## Cascaded STT, translation and TTS probe
+
+A practical local cascade was probed on the event machine using pinned Whisper `small.en`, OPUS-MT English-to-French and English-to-German, and Qwen3-TTS 12 Hz 0.6B CustomVoice candidates. The candidate manifests are in `docs/model_candidates/`. All inference used cached files with Hugging Face and Transformers offline modes enabled; no model was downloaded while the application was running. Only the fixed synthetic sentence “Welcome to JCU Open Day. Speech Shift is running locally.” and model-generated audio were used.
+
+Whisper retained its earlier ROCm result: 1.15 seconds to recognise the Qwen-generated English output, with an exact normalised match. The FP32 OPUS models ran on CPU. English-to-French loaded in 224 ms and translated in 204 ms; English-to-German loaded in 188 ms and translated in 136 ms. The fixed-sentence translations were manually reviewed as suitable for this narrow probe, but this is not a broad translation-quality evaluation.
+
+Qwen3-TTS loaded and generated valid 24 kHz audio on the Radeon 8060S using BF16 and eager PyTorch attention, without FlashAttention, architecture overrides or CPU fallback. The first process generated 7.36 seconds of audio in 72.87 seconds. A second process loaded in 1.47 seconds, then took 46.64 and 50.91 seconds for two consecutive generations producing 4.88 and 5.44 seconds of audio. Warm throughput therefore remained about 9.5 times slower than real time. Peak tracked GPU allocation was 2,445 MB, and none of the three files contained clipped samples. Whisper recognised the first output exactly.
+
+This TTS candidate is **not ready for promotion**. The packaged API returns the completed waveform rather than incremental output, so measured first-audio latency is the full 46–73 second generation time and greatly exceeds the 3-second gate. Request-level cancellation and broader public-output review also remain incomplete. Whisper and OPUS remain useful candidates, but the cascade is not exposed as a `local` or `modeldeck` capability until a faster, genuinely streaming TTS backend passes the same physical test. Replay remains the operational provider.

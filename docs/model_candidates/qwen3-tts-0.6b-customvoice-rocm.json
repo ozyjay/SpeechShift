@@ -1,0 +1,28 @@
+{
+  "candidate_id": "qwen3-tts-12hz-0.6b-customvoice-rocm",
+  "capability": "speech.synthesise",
+  "repository": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+  "revision": "85e237c12c027371202489a0ec509ded67b5e4b5",
+  "model_id": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+  "licence": "Apache-2.0 for the official model repository and weights",
+  "licence_reviewed": true,
+  "parameters": "905,788,672 BF16 parameters including the speech tokenizer",
+  "precision": "BF16 candidate on ROCm; FP32 fallback is not accepted as a silent provider change",
+  "languages": [
+    "English",
+    "French",
+    "German"
+  ],
+  "framework": "qwen-tts 0.1.1; Transformers 4.57.3; PyTorch 2.10.0 ROCm 7.1; Python 3.12",
+  "cuda_or_triton_requirements": "Official examples target CUDA and recommend optional FlashAttention 2. The manual PyTorch attention path is required for this ROCm probe; no CUDA-only FlashAttention package or HSA architecture override is permitted.",
+  "maintenance_status": "Official Qwen checkpoint and package pinned from the current 12 Hz release; only built-in CustomVoice speakers are in scope.",
+  "artifacts": [
+    {
+      "name": "Qwen3-TTS-12Hz-0.6B-CustomVoice checkpoint",
+      "source": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice/tree/85e237c12c027371202489a0ec509ded67b5e4b5",
+      "licence": "Apache-2.0",
+      "licence_source": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice/blob/85e237c12c027371202489a0ec509ded67b5e4b5/README.md",
+      "licence_reviewed": true
+    }
+  ]
+}

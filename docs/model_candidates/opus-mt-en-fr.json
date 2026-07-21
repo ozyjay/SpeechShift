@@ -1,0 +1,27 @@
+{
+  "candidate_id": "opus-mt-en-fr",
+  "capability": "text.translate",
+  "repository": "https://huggingface.co/Helsinki-NLP/opus-mt-en-fr",
+  "revision": "dd7f6540a7a48a7f4db59e5c0b9c42c8eea67f18",
+  "model_id": "Helsinki-NLP/opus-mt-en-fr",
+  "licence": "Apache-2.0 for the official model repository and weights",
+  "licence_reviewed": true,
+  "parameters": "Approximately 75M FP32 parameters",
+  "precision": "FP32 CPU candidate",
+  "languages": [
+    "English",
+    "French"
+  ],
+  "framework": "MarianMT through Transformers 4.57.3 and SentencePiece; Python 3.12",
+  "cuda_or_triton_requirements": "No CUDA or Triton requirement; short curated sentences will be probed on CPU to avoid GPU model contention.",
+  "maintenance_status": "Official Helsinki-NLP OPUS-MT checkpoint pinned at the recorded revision.",
+  "artifacts": [
+    {
+      "name": "OPUS-MT English to French checkpoint",
+      "source": "https://huggingface.co/Helsinki-NLP/opus-mt-en-fr/tree/dd7f6540a7a48a7f4db59e5c0b9c42c8eea67f18",
+      "licence": "Apache-2.0",
+      "licence_source": "https://huggingface.co/Helsinki-NLP/opus-mt-en-fr/blob/dd7f6540a7a48a7f4db59e5c0b9c42c8eea67f18/README.md",
+      "licence_reviewed": true
+    }
+  ]
+}

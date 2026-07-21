@@ -14,7 +14,7 @@
     "German"
   ],
   "framework": "qwen-tts 0.1.1; Transformers 4.57.3; PyTorch 2.10.0 ROCm 7.1; Python 3.12",
-  "cuda_or_triton_requirements": "Official examples target CUDA and recommend optional FlashAttention 2. The manual PyTorch attention path is required for this ROCm probe; no CUDA-only FlashAttention package or HSA architecture override is permitted.",
+  "cuda_or_triton_requirements": "Official examples target CUDA and recommend optional FlashAttention 2. Use standard PyTorch SDPA on ROCm; do not enable the experimental AOTriton path, install the CUDA-only FlashAttention package or apply an HSA architecture override.",
   "maintenance_status": "Official Qwen checkpoint and package pinned from the current 12 Hz release; only built-in CustomVoice speakers are in scope.",
   "artifacts": [
     {

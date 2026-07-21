@@ -225,3 +225,11 @@ def test_cascade_candidate_manifests_are_pinned_and_licence_reviewed() -> None:
         assert manifest.capability == capability
         assert manifest.revision == revision
         assert candidate_licence_failures(manifest) == []
+
+    qwen = CandidateManifest.model_validate_json(
+        Path("docs/model_candidates/qwen3-tts-0.6b-customvoice-rocm.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "standard PyTorch SDPA" in qwen.cuda_or_triton_requirements
+    assert "do not enable the experimental AOTriton path" in qwen.cuda_or_triton_requirements

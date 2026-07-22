@@ -11,7 +11,8 @@ from speechshift.model_readiness import (
     prepare_probe_record,
     readiness_failures,
 )
-from speechshift.tts_probe import TtsProbeOutcome, run_isolated_tts_probe
+from speechshift.tts_burn_in import run_tts_burn_in
+from speechshift.tts_probe import SysfsHardwareMonitor, TtsProbeOutcome, run_isolated_tts_probe
 
 
 def main() -> int:
@@ -40,6 +41,21 @@ def main() -> int:
     tts.add_argument("--startup-timeout", type=float, default=60)
     tts.add_argument("--generation-timeout", type=float, default=90)
     tts.add_argument("--cancel-after", type=float)
+    burn_in = subparsers.add_parser(
+        "burn-in-tts",
+        help="Repeat TTS completion, cancellation and timeout probes with thermal cut-offs.",
+    )
+    burn_in.add_argument("candidate", type=Path)
+    burn_in.add_argument("model", type=Path)
+    burn_in.add_argument("output", type=Path)
+    burn_in.add_argument("--python", type=Path, default=Path(sys.executable))
+    burn_in.add_argument("--cycles", type=int, default=10)
+    burn_in.add_argument("--startup-timeout", type=float, default=60)
+    burn_in.add_argument("--generation-timeout", type=float, default=90)
+    burn_in.add_argument("--cancel-after", type=float, default=2)
+    burn_in.add_argument("--forced-timeout", type=float, default=2)
+    burn_in.add_argument("--memory-recovery-timeout", type=float, default=10)
+    burn_in.add_argument("--cooldown-timeout", type=float, default=300)
     args = parser.parse_args()
 
     if args.command == "audit":
@@ -76,6 +92,7 @@ def main() -> int:
             startup_timeout_seconds=args.startup_timeout,
             generation_timeout_seconds=args.generation_timeout,
             cancel_after_seconds=args.cancel_after,
+            hardware_monitor=SysfsHardwareMonitor.discover(),
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
@@ -83,6 +100,35 @@ def main() -> int:
         if result.outcome in {TtsProbeOutcome.COMPLETED, TtsProbeOutcome.CANCELLED}:
             return 0
         return 1
+
+    if args.command == "burn-in-tts":
+        candidate = CandidateManifest.model_validate_json(args.candidate.read_text(encoding="utf-8"))
+        failures = candidate_licence_failures(candidate)
+        if candidate.capability != "speech.synthesise":
+            failures.append("candidate does not provide speech synthesis")
+        if failures:
+            print("Candidate burn-in is blocked:")
+            for failure in failures:
+                print(f"- {failure}")
+            return 1
+        worker = Path(__file__).with_name("qwen_tts_probe_worker.py")
+        summary = run_tts_burn_in(
+            [str(args.python), str(worker), str(args.model)],
+            SysfsHardwareMonitor.discover(),
+            cycles=args.cycles,
+            startup_timeout_seconds=args.startup_timeout,
+            generation_timeout_seconds=args.generation_timeout,
+            cancel_after_seconds=args.cancel_after,
+            forced_timeout_seconds=args.forced_timeout,
+            memory_recovery_timeout_seconds=args.memory_recovery_timeout,
+            cooldown_timeout_seconds=args.cooldown_timeout,
+        )
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(summary.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        status = "passed" if summary.passed else "failed"
+        print(f"TTS burn-in {status}: {summary.cycles_completed}/{summary.cycles_requested} cycles")
+        print(f"Burn-in result: {args.output}")
+        return 0 if summary.passed else 1
 
     record = load_probe_record(args.record)
     failures = readiness_failures(record)

@@ -56,7 +56,7 @@ A controlled optimisation pass compared eager attention, standard PyTorch SDPA, 
 
 Every optimisation run started below 55 °C GPU edge and 75 °C CPU package temperature. A watchdog sampled both sensors four times per second and would terminate a run at 80 °C GPU or 95 °C CPU. The highest observed values were 67 °C GPU and 71.75 °C CPU, and the machine was allowed to cool between variants.
 
-This TTS candidate is suitable for an explicitly asynchronous development pipeline, where the interface shows staged progress and does not claim real-time output. It is **not ready for provider promotion** because request-level cancellation, timeout cleanup and broader public-output review remain incomplete. The packaged API returns the completed waveform rather than incremental output, so first-audio latency remains the full generation time. No `local` or `modeldeck` capability is enabled by this probe, and replay remains the operational provider.
+This TTS candidate is suitable for an explicitly asynchronous development pipeline, where the interface shows staged progress and does not claim real-time output. It is **not ready for provider promotion** because the 50-cycle promotion burn-in, whole-stack integration and broader public-output review remain incomplete. The packaged API returns the completed waveform rather than incremental output, so first-audio latency remains the full generation time. No `local` or `modeldeck` capability is enabled by this probe, and replay remains the operational provider.
 
 ### Isolated TTS cancellation probe
 
@@ -85,4 +85,27 @@ Run cancellation after generation has been active for two seconds:
 
 The result distinguishes completion, explicit cancellation, start-up timeout, generation timeout and a sanitised worker error. Process exit is necessary evidence for cleanup, but promotion still requires observing GPU memory return to its pre-probe baseline on the event machine and recording that result in a completed readiness record.
 
-The first physical cancellation run with this checked-in runner loaded the model in 1,531 ms, cancelled two seconds after generation began and terminated the worker cleanly with `SIGTERM` in 114 ms. This passes the 250 ms cancellation-latency gate for the fixed synthetic probe. Repeated cancellation, timeout cleanup, GPU-memory baseline recovery and broader public-output review remain required before provider promotion.
+The first physical cancellation run with this checked-in runner loaded the model in 1,531 ms, cancelled two seconds after generation began and terminated the worker cleanly with `SIGTERM` in 114 ms. This passed the 250 ms cancellation-latency gate for the fixed synthetic probe and established the baseline for the repeated burn-in below.
+
+### TTS burn-in and thermal safety
+
+The burn-in command runs cancellation, forced-timeout and successful-completion probes in every cycle. Before each run it waits for the GPU edge temperature to be at most 55 °C and CPU `Tctl` to be at most 75 °C. While a worker is active, the parent samples both sysfs sensors every 250 ms and terminates the complete worker process group at 80 °C GPU or 95 °C CPU. These cut-offs are fixed safety policy rather than command-line options.
+
+Each run also samples total GPU VRAM immediately before start and waits for usage to return within 64 MB of that baseline after worker exit. A cycle fails closed if the expected outcome is absent, termination exceeds 250 ms, the worker survives, VRAM does not recover within ten seconds, completed audio contains clipping, or a thermal cut-off occurs. Generated audio is still measured in memory and discarded.
+
+Run one physical acceptance cycle before scheduling the longer burn-in:
+
+```powershell
+.venv/bin/python scripts/model_probe.py burn-in-tts `
+  docs/model_candidates/qwen3-tts-0.6b-customvoice-rocm.json `
+  /path/to/pinned/qwen-snapshot `
+  probe-results/qwen-burn-in-1.json `
+  --python .model-probes/sensible-pipeline/venv/bin/python `
+  --cycles 1
+```
+
+The development burn-in uses ten cycles by default. Promotion requires a separate 50-cycle run with `--cycles 50`, followed by review of the machine-readable summary. A thermal cut-off stops the burn-in immediately; it must never be treated as a successful cancellation result.
+
+The first physical acceptance cycle passed all three paths. Cancellation and forced timeout terminated in 114 ms and 115 ms respectively, and VRAM returned to baseline tolerance immediately after process exit. The completed generation took 28.565 seconds for 3.040 seconds of audio, contained no clipped samples and used 2,322 MB peak tracked allocation. Across the cycle, observed temperatures peaked at 64 °C GPU edge and 74.75 °C CPU `Tctl`, below both cut-offs. This single cycle validates the harness, not the ten- or fifty-cycle readiness gates.
+
+The ten-cycle development burn-in then passed all 30 runs: ten cancellations, ten forced timeouts and ten completions. Every worker exited, every VRAM check recovered within the 64 MB tolerance and the slowest recovery observation was 4 ms. Worst-case worker termination was 164 ms. Completed generation times ranged from 10.890 to 38.767 seconds, peak tracked allocation was 2,380 MB and no completed output contained clipped samples. Temperatures peaked at 65 °C GPU edge and 80.5 °C CPU `Tctl`, below the 80 °C and 95 °C active cut-offs. The 50-cycle promotion run and whole-stack checks remain outstanding.

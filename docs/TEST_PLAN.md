@@ -26,6 +26,7 @@
 - Local DSP request and interface contain no replay sentence semantics;
 - model checkpoint licence audit blocks downloads unless every declared artefact is reviewed;
 - isolated TTS completion, generation cancellation, hard start-up and generation timeouts, worker-process exit and sanitised worker errors;
+- TTS burn-in sequencing, hot-start refusal, active GPU/CPU thermal cut-offs and sysfs temperature/VRAM sensor discovery;
 - voice-transform readiness thresholds, schema-version compatibility and a twelve-clip in-memory synthetic eSpeak harness;
 - TypeScript type-check, production build, Python lint and tests;
 - headless system-Chromium smoke across every replay combination, local-only anonymisation selection, provider-specific source semantics, audio loading and visitor reset.

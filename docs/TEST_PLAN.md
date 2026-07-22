@@ -19,7 +19,8 @@
 - sequenced PCM input/output framing and ordering rejection;
 - backend byte-buffer limits and short-audio rejection;
 - shared PCM silence rejection before mock or Local DSP processing;
-- explicit development provider selection and unavailable live-provider rejection;
+- explicit development provider selection, four-route ModelDeck readiness and unavailable live-provider rejection;
+- staged ModelDeck STT, translation and TTS request contracts, event ordering, bounded WAV validation and cancellation on failure;
 - deterministic mock partial/final events, binary fixture output and metrics;
 - Local DSP profile validation, duration changes, amplitude ceiling, fades and real transformed binary output;
 - deterministic local anonymisation, duration preservation and rejection of target-voice fields;

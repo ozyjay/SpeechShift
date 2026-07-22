@@ -27,3 +27,21 @@ def test_unready_modeldeck_provider_cannot_be_selected() -> None:
     registry = ProviderRegistry(SpeechProvider.REPLAY, DemoMode.DEVELOPMENT)
     with pytest.raises(ProviderSelectionError, match="not ready"):
         registry.select("modeldeck")
+
+
+def test_ready_modeldeck_provider_is_explicit_and_development_only() -> None:
+    development = ProviderRegistry(
+        SpeechProvider.REPLAY,
+        DemoMode.DEVELOPMENT,
+        modeldeck_ready=True,
+    )
+    assert development.select("modeldeck") is SpeechProvider.MODELDECK
+    assert development.label == "ModelDeck"
+
+    open_day = ProviderRegistry(
+        SpeechProvider.REPLAY,
+        DemoMode.OPEN_DAY,
+        modeldeck_ready=True,
+    )
+    with pytest.raises(ProviderSelectionError, match="development-only"):
+        open_day.select("modeldeck")

@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
+import httpx
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,9 +17,11 @@ from speechshift.audio_activity import analyse_pcm16_activity
 from speechshift.config import Settings, SpeechProvider, get_settings
 from speechshift.local_dsp import PROFILE_DESCRIPTIONS, PROFILE_LABELS, LocalDspProvider
 from speechshift.mock_provider import MockSpeechProvider
+from speechshift.modeldeck import MODELDECK_VOICES, ModelDeckGateway, ModelDeckProvider
 from speechshift.models import (
     LocalRunRequest,
     MockRunRequest,
+    ModelDeckRunRequest,
     ProviderSelection,
     PublicConfig,
     ReplayRunRequest,
@@ -32,12 +35,27 @@ from speechshift.streaming import AudioStreamError, SequencedPcmBuffer
 LOGGER = logging.getLogger("speechshift")
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    modeldeck_transport: httpx.AsyncBaseTransport | None = None,
+) -> FastAPI:
     settings = settings or get_settings()
     catalogue = ReplayCatalogue(settings.replay_asset_dir)
     replay_provider = ReplayProvider(catalogue)
     mock_provider = MockSpeechProvider(catalogue)
     local_dsp_provider = LocalDspProvider()
+    modeldeck_gateway = ModelDeckGateway(
+        settings.modeldeck_url,
+        stt_timeout_seconds=settings.modeldeck_stt_timeout_seconds,
+        translation_timeout_seconds=settings.modeldeck_translation_timeout_seconds,
+        tts_timeout_seconds=settings.modeldeck_tts_timeout_seconds,
+        transport=modeldeck_transport,
+    )
+    modeldeck_provider = ModelDeckProvider(
+        modeldeck_gateway,
+        pipeline_timeout_seconds=settings.modeldeck_pipeline_timeout_seconds,
+    )
     provider_registry = ProviderRegistry(settings.speech_provider, settings.demo_mode)
     sessions = SessionStore()
 
@@ -46,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         LOGGER.info("SpeechShift started mode=%s provider=%s", settings.demo_mode, settings.speech_provider)
         yield
         await sessions.clear_all()
+        await modeldeck_gateway.close()
         LOGGER.info("SpeechShift stopped; in-memory sessions cleared")
 
     app = FastAPI(
@@ -58,13 +77,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.sessions = sessions
 
+    async def refresh_modeldeck_readiness() -> bool:
+        ready = (
+            settings.demo_mode.value == "development" and await modeldeck_gateway.ready()
+        )
+        provider_registry.set_modeldeck_ready(ready)
+        return ready
+
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
+        modeldeck_ready = await refresh_modeldeck_readiness()
         return {
             "status": "ready",
             "provider": provider_registry.selected,
             "replay_ready": True,
-            "live_provider_ready": False,
+            "live_provider_ready": modeldeck_ready,
             "mock_provider_ready": settings.demo_mode.value == "development",
             "local_dsp_ready": settings.demo_mode.value == "development",
             "storage": "memory-only",
@@ -72,6 +99,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/config", response_model=PublicConfig)
     async def public_config() -> PublicConfig:
+        await refresh_modeldeck_readiness()
         return PublicConfig(
             demo_name=settings.demo_name,
             demo_mode=settings.demo_mode,
@@ -91,10 +119,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 }
                 for profile_id, label in PROFILE_LABELS.items()
             ],
+            modeldeck_voice_profiles=[
+                {"id": profile_id, "label": label, "description": description}
+                for profile_id, (label, description) in MODELDECK_VOICES.items()
+            ],
         )
 
     @app.post("/api/providers/select", response_model=PublicConfig)
     async def select_provider(selection: ProviderSelection) -> PublicConfig:
+        await refresh_modeldeck_readiness()
         try:
             provider_registry.select(selection.provider)
         except ProviderSelectionError as error:
@@ -123,7 +156,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return
         await websocket.accept()
         active_task: asyncio.Task[None] | None = None
-        stream_request: MockRunRequest | LocalRunRequest | None = None
+        stream_request: MockRunRequest | LocalRunRequest | ModelDeckRunRequest | None = None
         stream_buffer: SequencedPcmBuffer | None = None
         stream_provider: SpeechProvider | None = None
 
@@ -255,6 +288,63 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                             "dsp": True,
                         }
                     )
+                elif command == "start_modeldeck":
+                    if provider_registry.selected is not SpeechProvider.MODELDECK:
+                        await send({"type": "error", "code": "provider_mismatch", "recoverable": True})
+                        continue
+                    if active_task and not active_task.done():
+                        await send({"type": "error", "code": "already_running", "recoverable": True})
+                        continue
+                    if not await refresh_modeldeck_readiness():
+                        await send(
+                            {"type": "error", "code": "modeldeck_unavailable", "recoverable": True}
+                        )
+                        continue
+                    try:
+                        request = ModelDeckRunRequest.model_validate(message.get("request"))
+                    except ValueError:
+                        await send(
+                            {"type": "error", "code": "invalid_modeldeck_request", "recoverable": True}
+                        )
+                        continue
+                    valid_selection = (
+                        request.selection_id in MODELDECK_VOICES
+                        if request.mode.value == "voice"
+                        else request.selection_id in {"fr", "de"}
+                    )
+                    if not valid_selection:
+                        await send({"type": "error", "code": "invalid_profile", "recoverable": True})
+                        continue
+                    if (
+                        request.audio_format.encoding != "pcm_s16le"
+                        or request.audio_format.sample_rate_hz != settings.audio_sample_rate
+                        or request.audio_format.channels != settings.audio_channels
+                    ):
+                        await send(
+                            {"type": "error", "code": "unsupported_audio_format", "recoverable": True}
+                        )
+                        continue
+                    session.cancelled = asyncio.Event()
+                    session.sequence = 0
+                    stream_request = request
+                    maximum_bytes = (
+                        settings.audio_sample_rate
+                        * settings.audio_channels
+                        * 2
+                        * settings.max_input_seconds
+                    )
+                    stream_buffer = SequencedPcmBuffer(maximum_bytes)
+                    stream_provider = SpeechProvider.MODELDECK
+                    await send(
+                        {
+                            "type": "state",
+                            "state": "receiving_audio",
+                            "stage": "spoken",
+                            "session_id": session.id,
+                            "generation": session.generation,
+                            "modeldeck": True,
+                        }
+                    )
                 elif command == "end_audio":
                     if stream_request is None or stream_buffer is None or stream_provider is None:
                         await send({"type": "error", "code": "audio_stream_not_started", "recoverable": True})
@@ -291,9 +381,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                 websocket.send_bytes,
                             )
                         )
-                    else:
+                    elif selected_stream_provider is SpeechProvider.MOCK_MODELDECK:
                         active_task = asyncio.create_task(
                             mock_provider.run(
+                                session,
+                                request,
+                                input_pcm,
+                                input_frames,
+                                send,
+                                websocket.send_bytes,
+                            )
+                        )
+                    else:
+                        active_task = asyncio.create_task(
+                            modeldeck_provider.run(
                                 session,
                                 request,
                                 input_pcm,

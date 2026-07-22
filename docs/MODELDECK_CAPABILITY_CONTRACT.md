@@ -1,40 +1,36 @@
 # ModelDeck capability contract
 
-Status: proposed production contract; deterministic development mock implemented in SpeechShift. ModelDeck itself does not yet expose a speech route.
+Status: SpeechShift integration implemented; `speech-recognition-v1` remains to be implemented in ModelDeck.
 
-SpeechShift will connect only to `http://127.0.0.1:8600` and never to management or worker ports. WebSockets are the preferred initial transport because the visitor contract needs bidirectional binary audio, cancellation, partial text and streamed audio.
+SpeechShift connects only to the ModelDeck gateway at `http://127.0.0.1:8600`. It never calls management or worker ports. The provider is development-only and remains unavailable until `GET /v1/routes` reports all four API model IDs ready:
 
-## `speech.voice_transform`
+- `speechshift-stt` using `speech-recognition-v1`;
+- `speechshift-en-fr` using English-to-French translation;
+- `speechshift-en-de` using English-to-German translation;
+- `speechshift-voice` using speech synthesis.
 
-The opening JSON message contains `session_id`, `profile`, `source_language`, and an audio format fixed initially to mono `pcm_s16le` at 16 kHz. Subsequent binary input frames have sequence numbers and bounded buffering. Client end-of-input and cancellation are explicit.
+These are API model IDs, not protocol-contract names. ModelDeck route configuration maps each unique API model ID to its compatible protocol contract and worker order.
 
-Output events include:
+## Recognition
 
-- `state` (`receiving_audio`, `processing`, `generating_audio`);
-- sequenced binary `audio` frames;
-- `metrics` with input duration, first-audio latency and underruns;
-- structured `error` with stable code, recoverability and public-safe detail;
-- `complete`.
+`POST /v1/audio/transcriptions` receives JSON containing a request ID, model `speechshift-stt`, language `en`, and base64-encoded mono `pcm_s16le` audio at 16 kHz. SpeechShift accepts at most eight seconds and expects a non-empty `text` response. ModelDeck should implement this route under `speech-recognition-v1` and keep the decoded audio and transcript in memory only.
 
-## `speech.translate`
+## Translation
 
-The opening message additionally contains `target_language` and a safe `voice_profile`. Output adds `transcript_partial`, `transcript_final`, `translation_partial` where supported, and `translation_final` before generated audio.
+`POST /v1/translations` receives recognised text, source language `en`, target `fr` or `de`, and the matching translation API model ID. SpeechShift expects non-empty `output_text`. Voice Shift skips this stage.
 
-## Protocol invariants
+## Speech synthesis
 
-- bounded input and output buffers;
-- monotonically increasing sequence numbers;
-- stale-session rejection;
-- one terminal `complete`, `cancelled` or `error` event;
-- cancellation reflected promptly and acknowledged;
-- no transcript text in technical gateway logs;
-- structured not-ready, unsupported-language and invalid-profile errors;
-- gateway disconnect does not trigger a silent provider change.
+`POST /v1/audio/speech` receives the final text, model `speechshift-voice`, response format `wav`, and a curated voice. Voice Shift permits Ryan or Aiden; Language Shift uses Ryan. SpeechShift accepts at most 2 MB and validates mono PCM16 at 24 kHz before forwarding audio.
 
-## Implemented mock framing
+## Runtime invariants
 
-The development mock uses the SpeechShift session WebSocket until ModelDeck owns a real gateway route. A `start_mock` JSON message declares the mode, curated selection and audio format. Each subsequent binary input message begins with a four-byte little-endian sequence number followed by PCM16 audio. `end_audio` closes input.
+- readiness is fail-closed and requires every route;
+- input is bounded sequenced PCM and silent input is rejected before ModelDeck;
+- stage and whole-pipeline timeouts are hard limits;
+- cancellation is forwarded through `POST /v1/requests/{request_id}/cancel`;
+- audio and transcript text are never written to SpeechShift logs;
+- errors are structured and do not silently change provider;
+- visitor audio, text and generated output remain in memory and are cleared on cancellation, reset, timeout and shutdown.
 
-Output sends `audio_start` JSON with the audio format, sequenced binary PCM16 messages, then `audio_end`. Input and output reject missing, repeated or out-of-order frames and enforce hard byte limits. Cancellation clears pending input and stops output. This framing is evidence for the proposed contract, not a commitment that ModelDeck must reuse the development route name.
-
-The initial capability should be one composite speech worker if physical probes show it improves cancellation and GPU-memory coordination. Multiple workers are justified only if independent lifecycle or reuse demonstrably outweighs extra hops and scheduling complexity.
+The SpeechShift WebSocket remains its browser-facing transport. A `start_modeldeck` message declares the mode, selection and audio format; sequenced binary input follows, then `end_audio`. Output uses staged JSON events plus sequenced binary PCM frames. This keeps browser session lifecycle and stale-generation protection owned by SpeechShift while ModelDeck owns model routing and execution.

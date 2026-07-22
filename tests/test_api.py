@@ -1,9 +1,24 @@
 import asyncio
 from pathlib import Path
 
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, MockTransport, Request, Response
 from speechshift.config import Settings
 from speechshift.main import create_app
+
+
+def _ready_modeldeck(request: Request) -> Response:
+    assert request.url.path == "/v1/routes"
+    return Response(
+        200,
+        json={
+            "routes": [
+                {"public_name": "speechshift-stt", "ready": True},
+                {"public_name": "speechshift-en-fr", "ready": True},
+                {"public_name": "speechshift-en-de", "ready": True},
+                {"public_name": "speechshift-voice", "ready": True},
+            ]
+        },
+    )
 
 
 def test_health_reports_replay_without_claiming_live_readiness() -> None:
@@ -87,5 +102,27 @@ def test_development_provider_selection_is_explicit() -> None:
         assert selected.json()["provider_label"] == "Mock contract"
         assert rejected.status_code == 409
         assert rejected.json()["detail"] == "provider is not ready"
+
+    asyncio.run(scenario())
+
+
+def test_modeldeck_can_only_be_selected_when_all_routes_are_ready() -> None:
+    async def scenario() -> None:
+        settings = Settings(replay_asset_dir=Path("assets/replay"), _env_file=None)
+        app = create_app(settings, modeldeck_transport=MockTransport(_ready_modeldeck))
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://speechshift.test") as client:
+            selected = await client.post(
+                "/api/providers/select",
+                json={"provider": "modeldeck"},
+            )
+        assert selected.status_code == 200
+        payload = selected.json()
+        assert payload["provider"] == "modeldeck"
+        assert payload["providers"][-1]["state"] == "ready"
+        assert [profile["id"] for profile in payload["modeldeck_voice_profiles"]] == [
+            "ryan",
+            "aiden",
+        ]
 
     asyncio.run(scenario())

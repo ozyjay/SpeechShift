@@ -6,7 +6,8 @@ SpeechShift implements the workspace content and safety policy with these contro
 - microphone inactive until the visitor explicitly grants permission and holds the record control;
 - permission-check streams stop immediately, while recording streams stop on release, limit, cancellation, device loss, reset or page exit;
 - Replay keeps microphone samples and playback WAVs in browser memory only;
-- Local DSP and Mock contract send bounded PCM to the loopback SpeechShift backend for in-memory processing, then clear it on completion, cancellation or reset;
+- Local DSP, Mock contract and ModelDeck send bounded PCM to the loopback SpeechShift backend for in-memory processing, then clear it on completion, cancellation or reset;
+- ModelDeck traffic uses only its loopback gateway; stage failures never trigger a silent provider fallback;
 - no audio or transcript persistence;
 - storage and transcript logging settings are rejected when enabled;
 - non-identifying technical logs only;

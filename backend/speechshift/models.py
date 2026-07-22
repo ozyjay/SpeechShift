@@ -33,6 +33,14 @@ class LocalRunRequest(BaseModel):
     audio_format: AudioFormat
 
 
+class ModelDeckRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: ShiftMode
+    selection_id: str = Field(min_length=1, max_length=64)
+    audio_format: AudioFormat
+
+
 class ProviderSelection(BaseModel):
     provider: str
 
@@ -67,3 +75,4 @@ class PublicConfig(BaseModel):
     port_allocation_confirmed: bool
     providers: list[ProviderStatus]
     local_voice_profiles: list[LocalVoiceProfile]
+    modeldeck_voice_profiles: list[LocalVoiceProfile]

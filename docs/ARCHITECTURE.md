@@ -14,6 +14,7 @@ PySide6 remains proven for VoiceChanger's direct DSP path, but using it here wou
 - `backend/speechshift/config.py`: fail-fast runtime and privacy validation.
 - `sessions.py`: bounded, memory-only sessions with cancellation and reset generations.
 - `replay.py`: deterministic provider and catalogue validation.
+- `modeldeck.py`: gateway-only readiness checks and staged STT, translation and TTS orchestration.
 - `main.py`: HTTP/WebSocket API and local static serving.
 - `assets/replay/`: approved prepared metadata and audio.
 
@@ -24,11 +25,17 @@ The interface is intentionally explicit:
 - `replay`: implemented and ready without a live model;
 - `mock-modeldeck`: development-only contract simulator with no model;
 - `local`: implemented in development as a real SpeechShift-owned DSP baseline; it is not an AI model;
-- `modeldeck`: reserved for the stable ModelDeck gateway, currently unavailable.
+- `modeldeck`: development-only live pipeline, selectable only while all required gateway routes report ready.
 
 There is no automatic provider switching. Future fallback requires a visible staff action. A live provider failure must not mutate the configured provider.
 
-Staff can explicitly switch among Replay, Local DSP and Mock contract without restarting the UI. Local DSP and Mock are rejected outside development mode. Real ModelDeck selection returns a structured not-ready response.
+Staff can explicitly switch providers without restarting the UI. Local DSP, Mock and ModelDeck are rejected outside development mode. ModelDeck selection returns a structured not-ready response unless `speechshift-stt`, `speechshift-en-fr`, `speechshift-en-de` and `speechshift-voice` are all ready. A readiness loss blocks new live runs without changing the selected provider.
+
+## ModelDeck pipeline
+
+SpeechShift accepts the visitor's bounded sequenced PCM stream on its own session WebSocket, then calls only the ModelDeck gateway at `127.0.0.1:8600`. It submits mono PCM16 audio to `speechshift-stt`, optionally sends recognised text to the selected French or German translation route, and sends the final text to `speechshift-voice`. Ryan and Aiden are the only voice-mode choices; language mode uses Ryan. The UI labels recognition, translation and generation as asynchronous stages rather than claiming live streaming.
+
+Each gateway stage has a hard timeout and the complete pipeline has a 110-second timeout. Cancellation, reset, timeout and failed output validation forward request cancellation to the gateway and discard SpeechShift's in-memory buffers. Returned audio must be a bounded mono PCM16 24 kHz WAV before it is streamed to the browser.
 
 ## Local DSP baseline
 
@@ -69,7 +76,7 @@ Microphone capture is intentionally independent of the replay provider:
 7. Clear, reset or page exit revokes the object URL and discards the samples.
 8. Once visitor data or a backend session exists, deliberate pointer or keyboard activity renews a bounded idle timer. A visible warning appears before expiry; expiry reuses the full reset path to stop capture and playback, revoke audio URLs, clear text and delete the backend session without changing provider.
 
-Replay mode keeps every microphone frame and WAV in the browser. Local DSP and Mock contract add an explicit transport step: mono 16 kHz PCM16 is divided into sequenced binary frames, sent with backpressure over the session WebSocket and accumulated in a backend buffer capped at eight seconds. Both output paths use the same sequenced binary framing in reverse. The browser rebuilds a memory-only WAV and revokes it on reset.
+Replay mode keeps every microphone frame and WAV in the browser. Local DSP, Mock contract and ModelDeck add an explicit transport step: mono 16 kHz PCM16 is divided into sequenced binary frames, sent with backpressure over the session WebSocket and accumulated in a backend buffer capped at eight seconds. Output paths use the same sequenced binary framing in reverse. The browser rebuilds a memory-only WAV and revokes it on reset.
 
 The mock emits deterministic partial/final text and prepared audio fixtures. Every event carries `mock: true`; fixture text and mock timing are additionally labelled. It validates integration behaviour but provides no evidence that a speech model works.
 

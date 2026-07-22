@@ -19,6 +19,12 @@ describe("stream state", () => {
   it("turns input gate failures into visitor-safe guidance", () => {
     expect(pipelineErrorMessage("audio_silent")).toContain("No clear speech was detected");
     expect(pipelineErrorMessage("audio_too_short")).toContain("too short");
+    expect(pipelineErrorMessage("modeldeck_unavailable")).toContain("local AI pipeline is unavailable");
+    expect(pipelineErrorMessage("modeldeck_timeout")).toContain("stopped safely");
+    expect(pipelineErrorMessage("recognition_timeout")).toContain("stopped safely");
+    expect(pipelineErrorMessage("thermal_cooldown_required")).toContain("cooling down");
+    expect(pipelineErrorMessage("thermal_limit_reached")).toContain("thermal safety limit");
+    expect(pipelineErrorMessage("thermal_monitor_unavailable")).toContain("safety monitor");
     expect(pipelineErrorMessage("unexpected")).toBe("Pipeline error: unexpected");
   });
 
@@ -31,5 +37,6 @@ describe("stream state", () => {
     });
     expect(sourcePresentation("replay").selectable).toBe(true);
     expect(sourcePresentation("mock-modeldeck").heading).toBe("Choose a fixture sentence");
+    expect(sourcePresentation("modeldeck").selectable).toBe(false);
   });
 });

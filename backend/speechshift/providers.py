@@ -8,9 +8,15 @@ class ProviderSelectionError(ValueError):
 
 
 class ProviderRegistry:
-    def __init__(self, initial: SpeechProvider, demo_mode: DemoMode) -> None:
+    def __init__(
+        self, initial: SpeechProvider, demo_mode: DemoMode, *, modeldeck_ready: bool = False
+    ) -> None:
         self._selected = initial
         self._demo_mode = demo_mode
+        self._modeldeck_ready = modeldeck_ready
+
+    def set_modeldeck_ready(self, ready: bool) -> None:
+        self._modeldeck_ready = ready
 
     @property
     def selected(self) -> SpeechProvider:
@@ -45,8 +51,12 @@ class ProviderRegistry:
             {
                 "id": "modeldeck",
                 "label": "ModelDeck",
-                "state": "not-configured",
-                "detail": "Speech capability does not yet exist in the gateway",
+                "state": "ready" if self._modeldeck_ready else "not-configured",
+                "detail": (
+                    "Live local STT, translation and synthetic speech"
+                    if self._modeldeck_ready
+                    else "Requires four ready SpeechShift routes in the local gateway"
+                ),
             },
         ]
 
@@ -60,6 +70,9 @@ class ProviderRegistry:
         if provider is SpeechProvider.LOCAL and self._demo_mode is not DemoMode.DEVELOPMENT:
             raise ProviderSelectionError("local DSP provider is development-only")
         if provider is SpeechProvider.MODELDECK:
-            raise ProviderSelectionError("provider is not ready")
+            if self._demo_mode is not DemoMode.DEVELOPMENT:
+                raise ProviderSelectionError("modeldeck provider is development-only")
+            if not self._modeldeck_ready:
+                raise ProviderSelectionError("provider is not ready")
         self._selected = provider
         return provider

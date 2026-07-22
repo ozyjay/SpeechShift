@@ -12,7 +12,7 @@
 - Use AudioWorklet with a hard-bounded buffer and resample completed capture to mono 16 kHz PCM.
 - Add `mock-modeldeck` as a development-only provider so the binary capability contract can be validated without misrepresenting ModelDeck readiness.
 - Implement a dependency-free Local DSP Voice Shift baseline before selecting a speech model; label it as signal processing and keep Language Shift unavailable.
-- Prefer one composite ModelDeck speech capability initially, subject to physical probes.
+- Orchestrate the existing ModelDeck recognition, translation and speech contracts as explicit stages through the gateway; require all four SpeechShift API model IDs before selection.
 
 ## Proposed externally
 
@@ -24,4 +24,4 @@
 - Headphones versus controlled speaker.
 - Physical microphone and output device acceptance.
 - Voice-conversion and multilingual model selection after ROCm/licence probes.
-- Exact ModelDeck speech protocol route and binary framing.
+- ModelDeck `speech-recognition-v1` implementation and worker acceptance.

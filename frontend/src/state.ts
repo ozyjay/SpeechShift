@@ -8,7 +8,7 @@ export interface SourcePresentation {
 }
 
 export function sourcePresentation(provider: string, capturedSeconds?: number): SourcePresentation {
-  if (provider === "local") {
+  if (provider === "local" || provider === "modeldeck") {
     return {
       heading: "Input recording",
       title: "Your recording",
@@ -57,5 +57,20 @@ export function formatLatency(
 export function pipelineErrorMessage(code?: string): string {
   if (code === "audio_silent") return "No clear speech was detected. Please record again and speak a little louder.";
   if (code === "audio_too_short") return "The recording was too short. Please hold the button longer.";
+  if (code === "modeldeck_unavailable" || code === "local_route_unavailable") {
+    return "The local AI pipeline is unavailable. Please ask a staff member to check ModelDeck.";
+  }
+  if (code === "thermal_cooldown_required") {
+    return "The local AI hardware is cooling down. Please wait before trying again.";
+  }
+  if (code === "thermal_limit_reached") {
+    return "The local AI pipeline stopped at its thermal safety limit. Please let the hardware cool down.";
+  }
+  if (code === "thermal_monitor_unavailable") {
+    return "The local AI safety monitor is unavailable. Please ask a staff member to check ModelDeck.";
+  }
+  if (code === "modeldeck_timeout" || code === "deadline_exceeded" || code === "recognition_timeout") {
+    return "The local AI pipeline took too long and was stopped safely. Please try again.";
+  }
   return `Pipeline error: ${code ?? "unknown"}`;
 }

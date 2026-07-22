@@ -54,6 +54,7 @@ export interface PublicConfig {
   port_allocation_confirmed: boolean;
   providers: ProviderStatus[];
   local_voice_profiles: LocalVoiceProfile[];
+  modeldeck_voice_profiles: LocalVoiceProfile[];
 }
 
 export interface StreamEvent {
@@ -72,6 +73,7 @@ export interface StreamEvent {
   code?: string;
   mock?: boolean;
   dsp?: boolean;
+  modeldeck?: boolean;
   fixture?: boolean;
   mock_timing?: boolean;
   dsp_processing?: boolean;

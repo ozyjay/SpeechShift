@@ -192,18 +192,21 @@ function updateMicrophoneState(message: string, state: "inactive" | "ready" | "r
 function updateStartAvailability(): void {
   const isMock = config?.provider === "mock-modeldeck";
   const isLocal = config?.provider === "local";
-  startButton.disabled = (isMock || isLocal) && !capturedAudio;
+  const isModelDeck = config?.provider === "modeldeck";
+  startButton.disabled = (isMock || isLocal || isModelDeck) && !capturedAudio;
   const title = startButton.querySelector("b");
   const detail = startButton.querySelector("small");
   if (title) title.textContent = isLocal
     ? "Apply local voice shift"
-    : (isMock ? "Run mock pipeline" : "Play the transformation");
+    : (isMock ? "Run mock pipeline" : (isModelDeck ? "Run local AI pipeline" : "Play the transformation"));
   if (detail) {
     detail.textContent = isLocal
       ? (capturedAudio ? "Real offline signal processing" : "Record a local sample first")
       : (isMock
           ? (capturedAudio ? "Streams your captured PCM to a deterministic mock" : "Record a local sample first")
-          : "About 3 seconds");
+          : (isModelDeck
+              ? (capturedAudio ? "Recognition and generation may take up to a minute" : "Record a local sample first")
+              : "About 3 seconds"));
   }
   const recordedSourceDetail = document.querySelector("#recordedSourceDetail");
   if (recordedSourceDetail && isLocal) {
@@ -217,6 +220,7 @@ function updateStartAvailability(): void {
 function updateProviderPresentation(): void {
   const isMock = config.provider === "mock-modeldeck";
   const isLocal = config.provider === "local";
+  const isModelDeck = config.provider === "modeldeck";
   document.body.classList.toggle("local-dsp-mode", isLocal);
   const languageTab = document.querySelector<HTMLButtonElement>('.mode-tab[data-mode="language"]');
   if (languageTab) languageTab.disabled = isLocal;
@@ -224,38 +228,54 @@ function updateProviderPresentation(): void {
   element("#providerLabel").textContent = config.provider_label;
   element("#privacyHeading").textContent = isLocal
     ? "Local DSP voice shift is selected."
-    : (isMock ? "Development mock contract is selected." : "The transformation remains a prepared replay.");
+    : (isMock
+        ? "Development mock contract is selected."
+        : (isModelDeck ? "ModelDeck local AI is selected." : "The transformation remains a prepared replay."));
   element("#privacyDetail").textContent = isLocal
     ? "Captured PCM is processed in memory by SpeechShift and cleared on reset. This is signal processing, not AI."
     : (isMock
         ? "Captured PCM crosses only to the local SpeechShift backend; text and output audio are deterministic fixtures."
-        : "The optional microphone check stays in browser memory and is cleared on reset.");
+        : (isModelDeck
+            ? "Captured audio, recognised words and generated speech stay on this machine and are cleared on reset."
+            : "The optional microphone check stays in browser memory and is cleared on reset."));
   element("#microphoneExplanation").innerHTML = isLocal
     ? `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds. Local DSP applies the selected voice effect without recognising or storing your words.`
     : (isMock
         ? `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds. The local backend validates this PCM stream, but mock text and output are fixtures.`
-        : `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds, then hear your original voice. It is not uploaded or used by the prepared transformation.`);
+        : (isModelDeck
+            ? `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds. ModelDeck processes it locally without retaining audio or transcript text.`
+            : `Hold to record up to <span id="maxSeconds">${config.max_input_seconds}</span> seconds, then hear your original voice. It is not uploaded or used by the prepared transformation.`));
   element("#accuracyNote").textContent = isLocal
     ? "Local DSP changes the sound directly and does not recognise words, translate speech or use an AI model. Results vary with microphone quality and speaking volume."
     : (isMock
         ? "Mock contract mode validates transport and interface behaviour only. Transcript, translation, timing and output audio are deterministic fixtures—not AI results."
-        : "AI-produced voices and translations are approximations and may contain errors. Replay timings illustrate the intended experience; they are not live-model measurements.");
+        : (isModelDeck
+            ? "Live local recognition, translations and synthetic voices are approximations and may contain errors. Processing is asynchronous rather than real time."
+            : "AI-produced voices and translations are approximations and may contain errors. Replay timings illustrate the intended experience; they are not live-model measurements."));
   element("#providerNote").textContent = isLocal
     ? "Local DSP is selected for real Voice Shift input. It is a development baseline, not a speech model, and Language Shift is unavailable."
     : (isMock
         ? "Mock contract is selected. It sends bounded audio to the local backend and uses deterministic fixtures. Switch back to Replay for the public story."
-        : "Replay is selected. Local DSP and the deterministic mock contract are available for supervised development testing.");
+        : (isModelDeck
+            ? "ModelDeck is ready through the stable local gateway. There is no automatic fallback if a live stage fails."
+            : "Replay is selected. Local DSP and the deterministic mock contract are available for supervised development testing."));
   const source = sourcePresentation(config.provider, capturedAudio?.durationSeconds);
   element("#sourceHeading").textContent = source.heading;
   element("#inputLabel").textContent = isLocal
     ? "Your recording"
-    : (isMock ? "Recorded transport with fixture output" : "Prepared transformation");
+    : (isMock
+        ? "Recorded transport with fixture output"
+        : (isModelDeck ? "Your recording through local AI" : "Prepared transformation"));
   element("#inputDetail").textContent = isLocal
     ? "The selected effect is applied directly to captured audio"
-    : (isMock ? "Fixture text does not describe the recorded words" : "Your microphone recording is not sent to replay");
+    : (isMock
+        ? "Fixture text does not describe the recorded words"
+        : (isModelDeck ? "Processed only through the ModelDeck gateway" : "Your microphone recording is not sent to replay"));
   element("#spokenDetail").textContent = isLocal
     ? "Your captured audio"
-    : (isMock ? "Captured PCM with fixture text" : "Prepared source clip");
+    : (isMock
+        ? "Captured PCM with fixture text"
+        : (isModelDeck ? "Your captured audio" : "Prepared source clip"));
   element("#generatedNumber").textContent = isLocal ? "2" : (mode === "voice" ? "3" : "4");
   renderChoices();
   updateStartAvailability();
@@ -472,7 +492,14 @@ function renderChoices(): void {
 
   const options = config.provider === "local"
     ? config.local_voice_profiles
-    : (mode === "voice" ? currentSentence().voices : currentSentence().languages);
+    : (config.provider === "modeldeck"
+        ? (mode === "voice"
+            ? config.modeldeck_voice_profiles
+            : [
+                { id: "fr", label: "French", text: "Translate your recognised words into French", audio: "" },
+                { id: "de", label: "German", text: "Translate your recognised words into German", audio: "" },
+              ])
+        : (mode === "voice" ? currentSentence().voices : currentSentence().languages));
   if (!options.some((option) => option.id === selectedOption)) selectedOption = options[0].id;
   const selectionChoices = element("#selectionChoices");
   selectionChoices.replaceChildren(
@@ -649,19 +676,27 @@ async function startRun(): Promise<void> {
   startButton.disabled = true;
   cancelButton.disabled = false;
   element("#journey").scrollIntoView({ behavior: "smooth", block: "start" });
-  if (config.provider === "mock-modeldeck" || config.provider === "local") {
+  if (config.provider === "mock-modeldeck" || config.provider === "local" || config.provider === "modeldeck") {
     if (!capturedAudio) throw new Error(config.provider === "local"
       ? "Record a local sample before applying Local DSP."
-      : "Record a local sample before running the mock contract.");
+      : (config.provider === "modeldeck"
+          ? "Record a local sample before running ModelDeck."
+          : "Record a local sample before running the mock contract."));
     element("#latency").textContent = config.provider === "local"
       ? "Applying local DSP in memory…"
-      : "Sending bounded PCM to deterministic mock…";
+      : (config.provider === "modeldeck"
+          ? "Sending bounded PCM to the local ModelDeck gateway…"
+          : "Sending bounded PCM to deterministic mock…");
     const audioFormat = { encoding: "pcm_s16le", sample_rate_hz: capturedAudio.sampleRate, channels: 1 };
     const request = config.provider === "local"
       ? { selection_id: selectedOption, audio_format: audioFormat }
-      : { mode, sentence_id: selectedSentence, selection_id: selectedOption, audio_format: audioFormat };
+      : (config.provider === "modeldeck"
+          ? { mode, selection_id: selectedOption, audio_format: audioFormat }
+          : { mode, sentence_id: selectedSentence, selection_id: selectedOption, audio_format: audioFormat });
     socket?.send(JSON.stringify({
-      command: config.provider === "local" ? "start_local" : "start_mock",
+      command: config.provider === "local"
+        ? "start_local"
+        : (config.provider === "modeldeck" ? "start_modeldeck" : "start_mock"),
       request,
     }));
     await sendBinaryFrames(sequencedPcm16Frames(capturedAudio.samples));

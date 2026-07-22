@@ -25,11 +25,15 @@ SpeechShift is an honest replay-first MVP with a separate local microphone found
 - Sequenced, bounded binary PCM input and output over the session WebSocket.
 - Partial/final transcript events, translation events, streamed output audio, cancellation and structured errors.
 - Real offline Local DSP Voice Shift for captured visitor audio.
+- Development-only ModelDeck orchestration for live recognition, French/German translation and synthetic speech.
+- Fail-closed ModelDeck readiness requiring all four API model IDs before staff can select it.
 - Calm, energetic and clearly artificial robot DSP profiles with limiting and click-reducing fades.
 - Unified visitor screen and staff diagnostics panel.
 - Strict privacy and ModelDeck gateway configuration checks.
 
-The microphone remains inactive until the visitor selects **Enable microphone** and then holds **Hold to record**. Releasing the button stops capture. In Replay mode, the recording never leaves the browser. Staff may explicitly select **Local DSP** in development mode to transform the real captured voice with offline signal processing. This baseline does not recognise words, translate speech or use an AI model. **Mock contract** remains available for deterministic integration testing. The real `modeldeck` provider remains unavailable until a speech capability passes its readiness gates.
+The microphone remains inactive until the visitor selects **Enable microphone** and then holds **Hold to record**. Releasing the button stops capture. In Replay mode, the recording never leaves the browser. Staff may explicitly select **Local DSP** in development mode to transform the real captured voice with offline signal processing. This baseline does not recognise words, translate speech or use an AI model. **Mock contract** remains available for deterministic integration testing.
+
+The real **ModelDeck** provider becomes selectable in development only when the gateway reports `speechshift-stt`, `speechshift-en-fr`, `speechshift-en-de` and `speechshift-voice` ready. It runs those APIs as a visibly staged, asynchronous pipeline and never falls back to another provider. At present, ModelDeck still needs the proposed `speech-recognition-v1` route before this gate can pass.
 
 ## Quick start
 
@@ -64,7 +68,7 @@ Browser visitor/staff UI :3800 proposal
         ↕ HTTP + WebSocket
 FastAPI orchestration and in-memory session state
         ↓ explicit provider
-Replay assets | Local DSP baseline | mock contract | ModelDeck gateway :8600 (future)
+Replay assets | Local DSP baseline | mock contract | ModelDeck gateway :8600
 ```
 
 SpeechShift never calls ModelDeck management or worker ports. See [Architecture](docs/ARCHITECTURE.md), [privacy and safety](docs/PRIVACY_AND_SAFETY.md), and the [demo runbook](docs/DEMO_RUNBOOK.md).

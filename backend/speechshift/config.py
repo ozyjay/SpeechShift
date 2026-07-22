@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     port_allocation_confirmed: bool = False
     speech_provider: SpeechProvider = SpeechProvider.REPLAY
     modeldeck_url: str = "http://127.0.0.1:8600"
+    modeldeck_stt_timeout_seconds: float = Field(default=15, ge=1, le=30)
+    modeldeck_translation_timeout_seconds: float = Field(default=10, ge=1, le=30)
+    modeldeck_tts_timeout_seconds: float = Field(default=90, ge=10, le=110)
+    modeldeck_pipeline_timeout_seconds: float = Field(default=110, ge=30, le=120)
     audio_sample_rate: int = Field(default=16_000, ge=8_000, le=48_000)
     audio_channels: int = Field(default=1, ge=1, le=2)
     max_input_seconds: int = Field(default=8, ge=1, le=15)

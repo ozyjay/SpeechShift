@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from speechshift.model_readiness import (
@@ -10,6 +11,7 @@ from speechshift.model_readiness import (
     prepare_probe_record,
     readiness_failures,
 )
+from speechshift.tts_probe import TtsProbeOutcome, run_isolated_tts_probe
 
 
 def main() -> int:
@@ -27,6 +29,17 @@ def main() -> int:
         help="Fail unless the candidate code and every declared artefact have reviewed licences.",
     )
     audit.add_argument("candidate", type=Path)
+    tts = subparsers.add_parser(
+        "probe-tts",
+        help="Run the pinned TTS candidate in an offline, cancellable worker process.",
+    )
+    tts.add_argument("candidate", type=Path)
+    tts.add_argument("model", type=Path)
+    tts.add_argument("output", type=Path)
+    tts.add_argument("--python", type=Path, default=Path(sys.executable))
+    tts.add_argument("--startup-timeout", type=float, default=60)
+    tts.add_argument("--generation-timeout", type=float, default=90)
+    tts.add_argument("--cancel-after", type=float)
     args = parser.parse_args()
 
     if args.command == "audit":
@@ -46,6 +59,30 @@ def main() -> int:
         args.output.write_text(record.model_dump_json(indent=2) + "\n", encoding="utf-8")
         print(f"Prepared model probe record: {args.output}")
         return 0
+
+    if args.command == "probe-tts":
+        candidate = CandidateManifest.model_validate_json(args.candidate.read_text(encoding="utf-8"))
+        failures = candidate_licence_failures(candidate)
+        if candidate.capability != "speech.synthesise":
+            failures.append("candidate does not provide speech synthesis")
+        if failures:
+            print("Candidate probe is blocked:")
+            for failure in failures:
+                print(f"- {failure}")
+            return 1
+        worker = Path(__file__).with_name("qwen_tts_probe_worker.py")
+        result = run_isolated_tts_probe(
+            [str(args.python), str(worker), str(args.model)],
+            startup_timeout_seconds=args.startup_timeout,
+            generation_timeout_seconds=args.generation_timeout,
+            cancel_after_seconds=args.cancel_after,
+        )
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        print(f"TTS probe result: {result.outcome} ({args.output})")
+        if result.outcome in {TtsProbeOutcome.COMPLETED, TtsProbeOutcome.CANCELLED}:
+            return 0
+        return 1
 
     record = load_probe_record(args.record)
     failures = readiness_failures(record)

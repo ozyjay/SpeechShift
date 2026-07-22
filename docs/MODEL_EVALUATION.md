@@ -57,3 +57,30 @@ A controlled optimisation pass compared eager attention, standard PyTorch SDPA, 
 Every optimisation run started below 55 °C GPU edge and 75 °C CPU package temperature. A watchdog sampled both sensors four times per second and would terminate a run at 80 °C GPU or 95 °C CPU. The highest observed values were 67 °C GPU and 71.75 °C CPU, and the machine was allowed to cool between variants.
 
 This TTS candidate is suitable for an explicitly asynchronous development pipeline, where the interface shows staged progress and does not claim real-time output. It is **not ready for provider promotion** because request-level cancellation, timeout cleanup and broader public-output review remain incomplete. The packaged API returns the completed waveform rather than incremental output, so first-audio latency remains the full generation time. No `local` or `modeldeck` capability is enabled by this probe, and replay remains the operational provider.
+
+### Isolated TTS cancellation probe
+
+The checked-in probe runner starts Qwen in its own process group, forces Hugging Face and Transformers offline modes, uses only the fixed synthetic probe sentence and discards the generated waveform after calculating safety measurements. The worker reports when model loading is complete so cancellation measures generation rather than start-up. A hard start-up or generation timeout terminates the complete worker process group; worker errors record only the exception type and never model input or output.
+
+Run a normal completion probe with the isolated model environment and cached snapshot:
+
+```powershell
+.venv/bin/python scripts/model_probe.py probe-tts `
+  docs/model_candidates/qwen3-tts-0.6b-customvoice-rocm.json `
+  /path/to/pinned/qwen-snapshot `
+  probe-results/qwen-complete.json `
+  --python .model-probes/sensible-pipeline/venv/bin/python
+```
+
+Run cancellation after generation has been active for two seconds:
+
+```powershell
+.venv/bin/python scripts/model_probe.py probe-tts `
+  docs/model_candidates/qwen3-tts-0.6b-customvoice-rocm.json `
+  /path/to/pinned/qwen-snapshot `
+  probe-results/qwen-cancel.json `
+  --python .model-probes/sensible-pipeline/venv/bin/python `
+  --cancel-after 2
+```
+
+The result distinguishes completion, explicit cancellation, start-up timeout, generation timeout and a sanitised worker error. Process exit is necessary evidence for cleanup, but promotion still requires observing GPU memory return to its pre-probe baseline on the event machine and recording that result in a completed readiness record.

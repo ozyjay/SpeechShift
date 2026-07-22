@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -18,27 +20,28 @@ def main() -> int:
     )
     parser.add_argument("model", type=Path)
     args = parser.parse_args()
-    if not args.model.is_dir():
-        raise ValueError("Qwen model path must be an existing directory")
 
     try:
-        import torch
-        from qwen_tts import Qwen3TTSModel
+        if not args.model.is_dir():
+            raise ValueError("Qwen model path must be an existing directory")
+        with contextlib.redirect_stdout(sys.stderr):
+            import torch
+            from qwen_tts import Qwen3TTSModel
 
-        load_started = time.perf_counter()
-        model = Qwen3TTSModel.from_pretrained(
-            str(args.model),
-            device_map="cuda:0",
-            dtype=torch.bfloat16,
-            attn_implementation="sdpa",
-            local_files_only=True,
-        )
+            load_started = time.perf_counter()
+            model = Qwen3TTSModel.from_pretrained(
+                str(args.model),
+                device_map="cuda:0",
+                dtype=torch.bfloat16,
+                attn_implementation="sdpa",
+                local_files_only=True,
+            )
         load_time_ms = round((time.perf_counter() - load_started) * 1_000)
         _emit({"event": "ready", "load_time_ms": load_time_ms})
 
         torch.cuda.reset_peak_memory_stats()
         generation_started = time.perf_counter()
-        with torch.inference_mode():
+        with contextlib.redirect_stdout(sys.stderr), torch.inference_mode():
             waveforms, sample_rate = model.generate_custom_voice(
                 text=SYNTHETIC_TEXT,
                 language="English",

@@ -84,3 +84,5 @@ Run cancellation after generation has been active for two seconds:
 ```
 
 The result distinguishes completion, explicit cancellation, start-up timeout, generation timeout and a sanitised worker error. Process exit is necessary evidence for cleanup, but promotion still requires observing GPU memory return to its pre-probe baseline on the event machine and recording that result in a completed readiness record.
+
+The first physical cancellation run with this checked-in runner loaded the model in 1,531 ms, cancelled two seconds after generation began and terminated the worker cleanly with `SIGTERM` in 114 ms. This passes the 250 ms cancellation-latency gate for the fixed synthetic probe. Repeated cancellation, timeout cleanup, GPU-memory baseline recovery and broader public-output review remain required before provider promotion.

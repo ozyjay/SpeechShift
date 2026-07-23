@@ -196,6 +196,30 @@ async function verifyProviderPresentation(page) {
   check(await page.locator("#selectionChoices .selected").count() === 1, "Replay retained an invalid local-only profile");
 }
 
+async function verifyReadableTypography(page) {
+  const selectors = [
+    ".microphone-copy > p:last-child",
+    "#recordHint",
+    ".choice-card small",
+    ".option-card small",
+    ".stage p",
+    ".generation-progress small",
+    ".accuracy-note",
+    ".operator-note",
+  ];
+  for (const selector of selectors) {
+    const size = await page.locator(selector).first().evaluate(
+      (node) => Number.parseFloat(window.getComputedStyle(node).fontSize),
+    );
+    check(size >= 12.4, `${selector} is still too small at ${size}px`);
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  check(mobileOverflow <= 1, `Larger typography causes ${mobileOverflow}px of mobile horizontal overflow`);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+}
+
 async function verifyInactivityReset(page) {
   await page.route("**/api/config", async (route) => {
     const response = await route.fetch();
@@ -246,6 +270,7 @@ async function main() {
   await page.locator("#providerLabel").getByText("Replay mode", { exact: true }).waitFor();
   const catalogue = await (await fetch(`${baseUrl}/api/replay/catalogue`)).json();
 
+  await verifyReadableTypography(page);
   await verifyMuteControl(page);
   await verifyReplayCombinations(page, catalogue);
   await verifyProviderPresentation(page);

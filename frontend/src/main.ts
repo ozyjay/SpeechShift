@@ -131,7 +131,7 @@ root.innerHTML = `
         <div id="generationProgressBar" class="generation-progress-track" role="progressbar" aria-label="Speech generation progress" aria-valuetext="Generating speech">
           <span></span>
         </div>
-        <small>The model returns the completed waveform at once. This usually takes 30–40 seconds.</small>
+        <small>The model returns the completed waveform at once. This usually takes 45–55 seconds.</small>
       </div>
       <div class="result-player">
         <canvas id="waveform" width="900" height="110" aria-label="Animated audio waveform"></canvas>

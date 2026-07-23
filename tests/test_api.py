@@ -21,10 +21,16 @@ def _ready_modeldeck(request: Request) -> Response:
     )
 
 
+def _unavailable_modeldeck(request: Request) -> Response:
+    assert request.url.path == "/v1/routes"
+    return Response(200, json={"routes": []})
+
+
 def test_health_reports_replay_without_claiming_live_readiness() -> None:
     async def scenario() -> None:
         settings = Settings(replay_asset_dir=Path("assets/replay"), _env_file=None)
-        transport = ASGITransport(app=create_app(settings))
+        app = create_app(settings, modeldeck_transport=MockTransport(_unavailable_modeldeck))
+        transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://speechshift.test") as client:
             response = await client.get("/api/health")
         assert response.status_code == 200
@@ -61,7 +67,8 @@ def test_api_creates_and_clears_memory_only_session() -> None:
 def test_public_config_keeps_live_providers_visibly_unavailable() -> None:
     async def scenario() -> None:
         settings = Settings(replay_asset_dir=Path("assets/replay"), _env_file=None)
-        transport = ASGITransport(app=create_app(settings))
+        app = create_app(settings, modeldeck_transport=MockTransport(_unavailable_modeldeck))
+        transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://speechshift.test") as client:
             payload = (await client.get("/api/config")).json()
         assert payload["provider"] == "replay"
@@ -87,7 +94,8 @@ def test_public_config_keeps_live_providers_visibly_unavailable() -> None:
 def test_development_provider_selection_is_explicit() -> None:
     async def scenario() -> None:
         settings = Settings(replay_asset_dir=Path("assets/replay"), _env_file=None)
-        transport = ASGITransport(app=create_app(settings))
+        app = create_app(settings, modeldeck_transport=MockTransport(_unavailable_modeldeck))
+        transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://speechshift.test") as client:
             selected = await client.post(
                 "/api/providers/select",

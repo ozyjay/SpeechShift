@@ -21,7 +21,7 @@ These are API model IDs, not protocol-contract names. ModelDeck route configurat
 
 ## Speech synthesis
 
-`POST /v1/audio/speech` receives the final text, model `speechshift-voice`, response format `wav`, and a curated voice. Voice Shift permits Ryan or Aiden; Language Shift uses Ryan. SpeechShift accepts at most 2 MB and validates mono PCM16 at 24 kHz before forwarding audio.
+`POST /v1/audio/speech` receives the final text, model `speechshift-voice`, response format `wav`, and a curated voice. Voice Shift permits the built-in speakers Ryan, Aiden, Vivian or Serena; Language Shift uses Ryan. SpeechShift accepts at most 2 MB and validates mono PCM16 at 24 kHz before forwarding audio.
 
 ## Runtime invariants
 

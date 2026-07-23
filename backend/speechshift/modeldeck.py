@@ -22,8 +22,10 @@ MODELDECK_MODELS = frozenset(
     {"speechshift-stt", "speechshift-en-fr", "speechshift-en-de", "speechshift-voice"}
 )
 MODELDECK_VOICES = {
-    "ryan": ("Ryan", "Built-in synthetic voice"),
-    "aiden": ("Aiden", "Built-in synthetic voice"),
+    "ryan": ("Ryan", "Dynamic built-in synthetic male voice"),
+    "aiden": ("Aiden", "Sunny built-in synthetic male voice"),
+    "vivian": ("Vivian", "Bright built-in synthetic female voice"),
+    "serena": ("Serena", "Warm, gentle built-in synthetic female voice"),
 }
 LANGUAGE_MODELS = {"fr": "speechshift-en-fr", "de": "speechshift-en-de"}
 LANGUAGE_LABELS = {"fr": "French", "de": "German"}

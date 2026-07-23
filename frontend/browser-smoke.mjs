@@ -179,6 +179,10 @@ async function verifyProviderPresentation(page) {
   check(await page.locator('.mode-tab[data-mode="language"]').isDisabled(), "Local DSP still enables Language Shift");
   check(await page.locator("#startButton").isDisabled(), "Local DSP can start without a recording");
   check(await page.locator("#selectionChoices button").count() === 4, "Local DSP profiles are incomplete");
+  check(
+    await page.locator("#selectionChoices").evaluate((element) => element.classList.contains("four-options")),
+    "Four voice profiles do not use the readable two-by-two layout",
+  );
   await page.locator("#closeStaff").click();
   const anonymised = page.locator("#selectionChoices").getByRole("button", { name: /Anonymised voice/i });
   await anonymised.click();
@@ -194,6 +198,10 @@ async function verifyProviderPresentation(page) {
   check(await page.locator("#sourceHeading").textContent() === "Choose a sentence", "Replay sentence heading was not restored");
   check(await page.locator("#sentenceChoices button").count() === 3, "Replay sentence choices were not restored");
   check(await page.locator("#selectionChoices .selected").count() === 1, "Replay retained an invalid local-only profile");
+  check(
+    !(await page.locator("#selectionChoices").evaluate((element) => element.classList.contains("four-options"))),
+    "Replay retained the four-profile layout",
+  );
 }
 
 async function verifyReadableTypography(page) {

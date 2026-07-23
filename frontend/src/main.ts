@@ -520,13 +520,14 @@ function renderChoices(): void {
         : (mode === "voice" ? currentSentence().voices : currentSentence().languages));
   if (!options.some((option) => option.id === selectedOption)) selectedOption = options[0].id;
   const selectionChoices = element("#selectionChoices");
+  selectionChoices.classList.toggle("four-options", options.length === 4);
   selectionChoices.replaceChildren(
     ...options.map((option, index) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = `option-card ${option.id === selectedOption ? "selected" : ""}`;
       const description = "description" in option ? option.description : option.text;
-      button.innerHTML = `<span class="option-glyph">${["◌", "✦", "⌁"][index % 3]}</span><b></b><small></small>`;
+      button.innerHTML = `<span class="option-glyph">${["◌", "✦", "⌁", "◉"][index % 4]}</span><b></b><small></small>`;
       button.querySelector("b")!.textContent = option.label;
       button.querySelector("small")!.textContent = description;
       button.addEventListener("click", () => { selectedOption = option.id; renderChoices(); });

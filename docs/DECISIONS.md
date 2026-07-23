@@ -14,6 +14,7 @@
 - Implement a dependency-free Local DSP Voice Shift baseline before selecting a speech model; label it as signal processing and keep Language Shift unavailable.
 - Orchestrate the existing ModelDeck recognition, translation and speech contracts as explicit stages through the gateway; require all four SpeechShift API model IDs before selection.
 - Accept ModelDeck's `speech-recognition-v1` implementation behind the existing four-route, fail-closed readiness gate.
+- Curate Ryan, Aiden, Vivian and Serena from Qwen3-TTS as the only ModelDeck Voice Shift speakers; keep Language Shift on Ryan and reject voice cloning or visitor-supplied target voices.
 
 ## Proposed externally
 

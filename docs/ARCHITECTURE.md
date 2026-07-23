@@ -33,7 +33,7 @@ Staff can explicitly switch providers without restarting the UI. Local DSP, Mock
 
 ## ModelDeck pipeline
 
-SpeechShift accepts the visitor's bounded sequenced PCM stream on its own session WebSocket, then calls only the ModelDeck gateway at `127.0.0.1:8600`. It submits mono PCM16 audio to `speechshift-stt`, optionally sends recognised text to the selected French or German translation route, and sends the final text to `speechshift-voice`. Ryan and Aiden are the only voice-mode choices; language mode uses Ryan. The UI labels recognition, translation and generation as asynchronous stages rather than claiming live streaming.
+SpeechShift accepts the visitor's bounded sequenced PCM stream on its own session WebSocket, then calls only the ModelDeck gateway at `127.0.0.1:8600`. It submits mono PCM16 audio to `speechshift-stt`, optionally sends recognised text to the selected French or German translation route, and sends the final text to `speechshift-voice`. Voice Shift offers the curated built-in speakers Ryan, Aiden, Vivian and Serena; Language Shift continues to use Ryan. The UI labels recognition, translation and generation as asynchronous stages rather than claiming live streaming.
 
 Each gateway stage has a hard timeout and the complete pipeline has a 110-second timeout. Cancellation, reset, timeout and failed output validation forward request cancellation to the gateway and discard SpeechShift's in-memory buffers. Returned audio must be a bounded mono PCM16 24 kHz WAV before it is streamed to the browser.
 

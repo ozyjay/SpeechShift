@@ -21,6 +21,7 @@
 - shared PCM silence rejection before mock or Local DSP processing;
 - explicit development provider selection, four-route ModelDeck readiness and unavailable live-provider rejection;
 - staged ModelDeck STT, translation and TTS request contracts, event ordering, bounded WAV validation and cancellation on failure;
+- exact Ryan, Aiden, Vivian and Serena ModelDeck voice allowlisting with unsupported speakers rejected before gateway traffic;
 - deterministic mock partial/final events, binary fixture output and metrics;
 - Local DSP profile validation, duration changes, amplitude ceiling, fades and real transformed binary output;
 - deterministic local anonymisation, duration preservation and rejection of target-voice fields;
@@ -43,4 +44,4 @@
 
 ## Required for later live milestones
 
-Test gateway restart/disconnect, binary frame order and backpressure, cancellation latency, model memory release, 50-session live reset, 60-minute live burn-in and whole-stack GPU/port coexistence.
+Test gateway restart/disconnect, binary frame order and backpressure, cancellation latency, model memory release, Vivian and Serena pronunciation across English, French and German, 50-session live reset, 60-minute live burn-in and whole-stack GPU/port coexistence.

@@ -131,6 +131,20 @@ def test_modeldeck_can_only_be_selected_when_all_routes_are_ready() -> None:
         assert [profile["id"] for profile in payload["modeldeck_voice_profiles"]] == [
             "ryan",
             "aiden",
+            "vivian",
+            "serena",
+        ]
+        assert payload["modeldeck_voice_profiles"][-2:] == [
+            {
+                "id": "vivian",
+                "label": "Vivian",
+                "description": "Bright built-in synthetic female voice",
+            },
+            {
+                "id": "serena",
+                "label": "Serena",
+                "description": "Warm, gentle built-in synthetic female voice",
+            },
         ]
 
     asyncio.run(scenario())

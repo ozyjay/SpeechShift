@@ -4,7 +4,8 @@ import json
 import wave
 
 import httpx
-from speechshift.modeldeck import ModelDeckGateway, ModelDeckProvider
+import pytest
+from speechshift.modeldeck import MODELDECK_VOICES, ModelDeckError, ModelDeckGateway, ModelDeckProvider
 from speechshift.models import ModelDeckRunRequest
 from speechshift.sessions import Session
 
@@ -134,6 +135,44 @@ def test_language_pipeline_uses_stt_translation_and_tts_contracts() -> None:
         ]
         assert all(event["modeldeck"] is True for event in events)
         assert frames and int.from_bytes(frames[0][:4], "little") == 1
+        await gateway.close()
+
+    asyncio.run(scenario())
+
+
+def test_gateway_accepts_only_the_four_curated_modeldeck_voices() -> None:
+    async def scenario() -> None:
+        requests: list[dict[str, object]] = []
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, content=_wav_bytes())
+
+        gateway = _gateway(httpx.MockTransport(handler))
+        for voice in MODELDECK_VOICES:
+            pcm, sample_rate = await gateway.synthesise(
+                f"voice-{voice}",
+                "The service is ready.",
+                voice=voice,
+                language="en",
+            )
+            assert pcm
+            assert sample_rate == 24_000
+
+        assert [request["voice"] for request in requests] == [
+            "ryan",
+            "aiden",
+            "vivian",
+            "serena",
+        ]
+        with pytest.raises(ModelDeckError, match="unsupported_voice"):
+            await gateway.synthesise(
+                "voice-unsupported",
+                "The service is ready.",
+                voice="ono_anna",
+                language="en",
+            )
+        assert len(requests) == 4
         await gateway.close()
 
     asyncio.run(scenario())

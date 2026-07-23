@@ -77,8 +77,16 @@ export function pipelineErrorMessage(code?: string): string {
   if (code === "thermal_monitor_unavailable") {
     return "The local AI safety monitor is unavailable. Please ask a staff member to check ModelDeck.";
   }
-  if (code === "modeldeck_timeout" || code === "deadline_exceeded" || code === "recognition_timeout") {
+  if (
+    code === "modeldeck_timeout"
+    || code === "deadline_exceeded"
+    || code === "recognition_timeout"
+    || code === "generation_timeout"
+  ) {
     return "The local AI pipeline took too long and was stopped safely. Please try again.";
+  }
+  if (code === "cancellation_unresponsive") {
+    return "The local AI pipeline stopped safely but needs a staff check before another live run.";
   }
   return `Pipeline error: ${code ?? "unknown"}`;
 }

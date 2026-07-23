@@ -1,6 +1,6 @@
 # ModelDeck capability contract
 
-Status: SpeechShift integration implemented; `speech-recognition-v1` remains to be implemented in ModelDeck.
+Status: implemented in SpeechShift and ModelDeck; live availability remains fail-closed on all four routes reporting ready.
 
 SpeechShift connects only to the ModelDeck gateway at `http://127.0.0.1:8600`. It never calls management or worker ports. The provider is development-only and remains unavailable until `GET /v1/routes` reports all four API model IDs ready:
 
@@ -13,7 +13,7 @@ These are API model IDs, not protocol-contract names. ModelDeck route configurat
 
 ## Recognition
 
-`POST /v1/audio/transcriptions` receives JSON containing a request ID, model `speechshift-stt`, language `en`, and base64-encoded mono `pcm_s16le` audio at 16 kHz. SpeechShift accepts at most eight seconds and expects a non-empty `text` response. ModelDeck should implement this route under `speech-recognition-v1` and keep the decoded audio and transcript in memory only.
+`POST /v1/audio/transcriptions` receives JSON containing a request ID, model `speechshift-stt`, language `en`, and base64-encoded mono `pcm_s16le` audio at 16 kHz. SpeechShift accepts at most eight seconds and expects a non-empty `text` response. ModelDeck implements this route under `speech-recognition-v1` and keeps the decoded audio and transcript in memory only.
 
 ## Translation
 

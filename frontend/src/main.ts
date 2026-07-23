@@ -576,7 +576,7 @@ function updateGenerationProgress(): void {
   element("#generationElapsed").textContent = elapsed;
   element("#generationProgressBar").setAttribute(
     "aria-valuetext",
-    `Generating speech, ${elapsed}. Usually takes 30 to 40 seconds.`,
+    `Generating speech, ${elapsed}. Usually takes 45 to 55 seconds.`,
   );
 }
 

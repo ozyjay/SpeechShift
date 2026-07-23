@@ -33,7 +33,7 @@ SpeechShift is an honest replay-first MVP with a separate local microphone found
 
 The microphone remains inactive until the visitor selects **Enable microphone** and then holds **Hold to record**. Releasing the button stops capture. In Replay mode, the recording never leaves the browser. Staff may explicitly select **Local DSP** in development mode to transform the real captured voice with offline signal processing. This baseline does not recognise words, translate speech or use an AI model. **Mock contract** remains available for deterministic integration testing.
 
-The real **ModelDeck** provider becomes selectable in development only when the gateway reports `speechshift-stt`, `speechshift-en-fr`, `speechshift-en-de` and `speechshift-voice` ready. It runs those APIs as a visibly staged, asynchronous pipeline and never falls back to another provider. At present, ModelDeck still needs the proposed `speech-recognition-v1` route before this gate can pass.
+The real **ModelDeck** provider becomes selectable in development only when the gateway reports `speechshift-stt`, `speechshift-en-fr`, `speechshift-en-de` and `speechshift-voice` ready. It runs those implemented APIs as a visibly staged, asynchronous pipeline and never falls back to another provider. Configured routes remain unavailable whenever any corresponding worker is stopped or unready.
 
 ## Quick start
 

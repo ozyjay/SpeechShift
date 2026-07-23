@@ -35,6 +35,8 @@ describe("stream state", () => {
     expect(pipelineErrorMessage("modeldeck_unavailable")).toContain("local AI pipeline is unavailable");
     expect(pipelineErrorMessage("modeldeck_timeout")).toContain("stopped safely");
     expect(pipelineErrorMessage("recognition_timeout")).toContain("stopped safely");
+    expect(pipelineErrorMessage("generation_timeout")).toContain("stopped safely");
+    expect(pipelineErrorMessage("cancellation_unresponsive")).toContain("needs a staff check");
     expect(pipelineErrorMessage("thermal_cooldown_required")).toContain("cooling down");
     expect(pipelineErrorMessage("thermal_limit_reached")).toContain("thermal safety limit");
     expect(pipelineErrorMessage("thermal_monitor_unavailable")).toContain("safety monitor");

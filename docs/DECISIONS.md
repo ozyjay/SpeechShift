@@ -13,6 +13,7 @@
 - Add `mock-modeldeck` as a development-only provider so the binary capability contract can be validated without misrepresenting ModelDeck readiness.
 - Implement a dependency-free Local DSP Voice Shift baseline before selecting a speech model; label it as signal processing and keep Language Shift unavailable.
 - Orchestrate the existing ModelDeck recognition, translation and speech contracts as explicit stages through the gateway; require all four SpeechShift API model IDs before selection.
+- Accept ModelDeck's `speech-recognition-v1` implementation behind the existing four-route, fail-closed readiness gate.
 
 ## Proposed externally
 
@@ -24,4 +25,3 @@
 - Headphones versus controlled speaker.
 - Physical microphone and output device acceptance.
 - Voice-conversion and multilingual model selection after ROCm/licence probes.
-- ModelDeck `speech-recognition-v1` implementation and worker acceptance.

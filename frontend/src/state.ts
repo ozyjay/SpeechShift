@@ -54,6 +54,14 @@ export function formatLatency(
   return replayTiming ? `${seconds} s prepared timing` : `${seconds} s measured`;
 }
 
+export function formatTaskElapsed(elapsedSeconds: number): string {
+  const wholeSeconds = Math.max(0, Math.floor(elapsedSeconds));
+  if (wholeSeconds < 60) return `${wholeSeconds} s elapsed`;
+  const minutes = Math.floor(wholeSeconds / 60);
+  const seconds = wholeSeconds % 60;
+  return `${minutes} min ${seconds} s elapsed`;
+}
+
 export function pipelineErrorMessage(code?: string): string {
   if (code === "audio_silent") return "No clear speech was detected. Please record again and speak a little louder.";
   if (code === "audio_too_short") return "The recording was too short. Please hold the button longer.";

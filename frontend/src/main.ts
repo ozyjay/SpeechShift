@@ -14,7 +14,13 @@ import {
   supportsAudioOutputSelection,
 } from "./audio";
 import { InactivityReset } from "./inactivity";
-import { acceptsEvent, formatLatency, pipelineErrorMessage, sourcePresentation } from "./state";
+import {
+  acceptsEvent,
+  formatLatency,
+  formatTaskElapsed,
+  pipelineErrorMessage,
+  sourcePresentation,
+} from "./state";
 import type { Catalogue, PublicConfig, Sentence, ShiftMode, StreamEvent } from "./types";
 
 const root = document.querySelector<HTMLDivElement>("#app");
@@ -117,6 +123,16 @@ root.innerHTML = `
         <span class="arrow">→</span>
         <article class="stage" data-stage="generated"><span class="stage-number" id="generatedNumber">3</span><div class="wave mini-wave reverse"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><h3>Generated speech</h3><p id="outputLabel">Waiting…</p></article>
       </div>
+      <div id="generationProgress" class="generation-progress" hidden>
+        <div class="generation-progress-copy">
+          <strong id="generationProgressLabel" role="status" aria-live="polite">Generating speech…</strong>
+          <span id="generationElapsed">0 s elapsed</span>
+        </div>
+        <div id="generationProgressBar" class="generation-progress-track" role="progressbar" aria-label="Speech generation progress" aria-valuetext="Generating speech">
+          <span></span>
+        </div>
+        <small>The model returns the completed waveform at once. This usually takes 30–40 seconds.</small>
+      </div>
       <div class="result-player">
         <canvas id="waveform" width="900" height="110" aria-label="Animated audio waveform"></canvas>
         <audio id="audioPlayer" preload="auto"></audio>
@@ -168,6 +184,8 @@ let streamedOutput: SequencedPcmOutput | null = null;
 let streamedOutputSampleRate = 16_000;
 let selectedOutputDeviceId = "";
 let inactivityReset: InactivityReset | null = null;
+let generationProgressTimer: number | null = null;
+let generationProgressStartedAt = 0;
 
 const audio = element<HTMLAudioElement>("#audioPlayer");
 const localAudio = element<HTMLAudioElement>("#localAudioPlayer");
@@ -534,6 +552,7 @@ function setMode(nextMode: ShiftMode): void {
 
 function resetJourney(): void {
   lastSequence = 0;
+  resetGenerationProgress();
   if (lastAudioUrl?.startsWith("blob:")) URL.revokeObjectURL(lastAudioUrl);
   lastAudioUrl = null;
   streamedOutput?.clear();
@@ -550,6 +569,51 @@ function resetJourney(): void {
   replayButton.disabled = true;
   stopWaveform();
   syncInactivityProtection();
+}
+
+function updateGenerationProgress(): void {
+  const elapsed = formatTaskElapsed((performance.now() - generationProgressStartedAt) / 1_000);
+  element("#generationElapsed").textContent = elapsed;
+  element("#generationProgressBar").setAttribute(
+    "aria-valuetext",
+    `Generating speech, ${elapsed}. Usually takes 30 to 40 seconds.`,
+  );
+}
+
+function startGenerationProgress(): void {
+  if (config.provider !== "modeldeck" || generationProgressTimer !== null) return;
+  const progress = element<HTMLElement>("#generationProgress");
+  progress.hidden = false;
+  progress.classList.remove("complete");
+  element("#generationProgressLabel").textContent = "Generating speech…";
+  element("#generationProgressBar").removeAttribute("aria-valuenow");
+  generationProgressStartedAt = performance.now();
+  updateGenerationProgress();
+  generationProgressTimer = window.setInterval(updateGenerationProgress, 1_000);
+}
+
+function finishGenerationProgress(): void {
+  if (generationProgressTimer === null) return;
+  window.clearInterval(generationProgressTimer);
+  generationProgressTimer = null;
+  updateGenerationProgress();
+  element("#generationProgress").classList.add("complete");
+  element("#generationProgressLabel").textContent = "Speech ready";
+  element("#generationProgressBar").setAttribute("aria-valuetext", "Speech generation complete");
+  element("#generationProgressBar").setAttribute("aria-valuenow", "100");
+}
+
+function resetGenerationProgress(): void {
+  if (generationProgressTimer !== null) window.clearInterval(generationProgressTimer);
+  generationProgressTimer = null;
+  generationProgressStartedAt = 0;
+  const progress = element<HTMLElement>("#generationProgress");
+  progress.hidden = true;
+  progress.classList.remove("complete");
+  element("#generationProgressLabel").textContent = "Generating speech…";
+  element("#generationElapsed").textContent = "0 s elapsed";
+  element("#generationProgressBar").setAttribute("aria-valuetext", "Generating speech");
+  element("#generationProgressBar").removeAttribute("aria-valuenow");
 }
 
 function syncInactivityProtection(): void {
@@ -583,7 +647,10 @@ function handleEvent(event: StreamEvent): void {
     element("#transcript").textContent = event.text ?? "";
   }
   if (event.type === "translation_final") element("#translation").textContent = event.text ?? "";
-  if (event.type === "state" && event.stage === "generated") element("#outputLabel").textContent = event.detail ?? "Generating…";
+  if (event.type === "state" && event.stage === "generated") {
+    element("#outputLabel").textContent = event.detail ?? "Generating…";
+    if (event.modeldeck) startGenerationProgress();
+  }
   if (event.type === "audio" && event.audio_url) {
     if (event.stage === "generated") {
       lastAudioUrl = event.audio_url;
@@ -596,6 +663,7 @@ function handleEvent(event: StreamEvent): void {
     startWaveform();
   }
   if (event.type === "audio_start") {
+    if (event.modeldeck) finishGenerationProgress();
     streamedOutput?.clear();
     streamedOutput = new SequencedPcmOutput(2_000_000);
     streamedOutputSampleRate = event.audio_format?.sample_rate_hz ?? config.audio_sample_rate;
@@ -620,6 +688,7 @@ function handleEvent(event: StreamEvent): void {
     );
   }
   if (event.type === "complete") {
+    finishGenerationProgress();
     document.querySelectorAll(".stage").forEach((stage) => stage.classList.add("complete"));
     updateStartAvailability();
     cancelButton.disabled = true;
@@ -630,6 +699,7 @@ function handleEvent(event: StreamEvent): void {
     element("#sessionState").textContent = "Cancelled";
   }
   if (event.type === "error") {
+    resetGenerationProgress();
     element("#latency").textContent = pipelineErrorMessage(event.code);
     cancelButton.disabled = true;
     updateStartAvailability();

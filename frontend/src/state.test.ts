@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { acceptsEvent, formatLatency, pipelineErrorMessage, sourcePresentation } from "./state";
+import {
+  acceptsEvent,
+  formatLatency,
+  formatTaskElapsed,
+  pipelineErrorMessage,
+  sourcePresentation,
+} from "./state";
 
 describe("stream state", () => {
   it("rejects stale generations and repeated sequences", () => {
@@ -14,6 +20,13 @@ describe("stream state", () => {
     expect(formatLatency(1540, false)).toBe("1.5 s measured");
     expect(formatLatency(1540, false, true)).toBe("1.5 s mock timing");
     expect(formatLatency(42, false, false, true)).toBe("42 ms local DSP");
+  });
+
+  it("formats elapsed task time without implying a completion percentage", () => {
+    expect(formatTaskElapsed(-1)).toBe("0 s elapsed");
+    expect(formatTaskElapsed(39.9)).toBe("39 s elapsed");
+    expect(formatTaskElapsed(60)).toBe("1 min 0 s elapsed");
+    expect(formatTaskElapsed(125)).toBe("2 min 5 s elapsed");
   });
 
   it("turns input gate failures into visitor-safe guidance", () => {

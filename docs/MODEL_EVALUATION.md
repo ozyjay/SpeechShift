@@ -54,6 +54,25 @@ Qwen3-TTS loaded and generated valid 24 kHz audio on the Radeon 8060S using BF16
 
 A controlled optimisation pass compared eager attention, standard PyTorch SDPA, deterministic SDPA and PyTorch's experimental ROCm AOTriton SDPA using the same fixed short phrase. Standard SDPA reduced elapsed generation from 36.84 to 25.22 seconds; because sampled clip lengths differed, the normalised throughput improvement was more modest, from 10.01 to 9.55 times slower than real time. Deterministic decoding improved throughput to 9.14 times slower than real time but produced a much longer clip and therefore increased wall time. Experimental AOTriton reached 9.19 times slower than real time, which did not justify its additional runtime risk. All outputs had exact Whisper matches and no clipped samples. The accepted configuration is therefore BF16 with standard PyTorch SDPA, sampling enabled, a resident model and a bounded generation-token limit.
 
+ModelDeck aligned its deployed Worker with that accepted configuration on 23 July 2026.
+The live immutable profile uses BF16, standard PyTorch SDPA, sampled talker and subtalker
+generation, 256 codec tokens and a 75-second generation deadline. Fixed English, French
+and German requests completed in 45.643, 53.835 and 50.630 seconds and produced 5.04,
+5.92 and 5.52 seconds of audio, for real-time factors of 9.056, 9.094 and 9.172. No
+output contained clipped samples. Multilingual Whisper word-error rates were 0.20, 0.333
+and 0.333; only aggregate scores were retained. Peak observed temperatures were 63.0 °C
+GPU edge and 71.125 °C CPU package, and global device-memory use peaked at 3,021.004 MB.
+
+The deployed Worker acknowledged cancellation in 7.010 ms. Qwen did not reach its
+stopping criterion within ModelDeck's five-second grace period, so ModelDeck failed the
+Worker closed and returned `cancellation_unresponsive` in 5.218 seconds. A deliberately
+long request exercised the immutable timeout and returned the same structured fail-closed
+response after 80.081 seconds, 9.919 seconds before SpeechShift's 90-second HTTP timeout.
+Both process exits recovered global device memory to 0.059 MB and clean restart passed.
+Open2026 Event revision 32 publishes the replacement Worker on `speechshift-voice`; the
+Route was ready through gateway port 8600 and returned a 24 kHz mono WAV in its final
+smoke request.
+
 Every optimisation run started below 55 °C GPU edge and 75 °C CPU package temperature. A watchdog sampled both sensors four times per second and would terminate a run at 80 °C GPU or 95 °C CPU. The highest observed values were 67 °C GPU and 71.75 °C CPU, and the machine was allowed to cool between variants.
 
 This TTS candidate is suitable for an explicitly asynchronous development pipeline, where the interface shows staged progress and does not claim real-time output. It is **not ready for Open Day promotion** because broader public-output review and whole-stack operational acceptance remain incomplete. The packaged API returns the completed waveform rather than incremental output, so first-audio latency remains the full generation time. SpeechShift now contains a development-only ModelDeck pipeline, but its readiness gate remains closed until all four required routes are available; replay remains the operational provider.
